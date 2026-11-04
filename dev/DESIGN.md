@@ -115,3 +115,36 @@ Vectorized R and precomputation are preferred first. Rcpp is reserved for kernel
 10. validate event-by-event against LANDIS-II Base Fire;
 11. profile and optimize hotspots;
 12. add extended/custom modules only after strict compatibility is demonstrated.
+
+
+## Base Fire parameter layer
+
+The Base Fire compatibility profile keeps its parameter representation separate
+from the generic fire-model contracts.
+
+The internal parameter layer stores:
+
+- timestep;
+- species fire tolerance;
+- fire-region name and map code;
+- mean, minimum and maximum event size;
+- ignition probability;
+- fire spread age;
+- initial and optional dynamic fire-region maps;
+- fuel severity curves;
+- wind severity curves;
+- fire damage classes;
+- map/log output names.
+
+Preparation converts these tables into compact numeric vectors, integer lookup
+arrays and matrices. In particular, map codes use a direct 65,536-entry integer
+lookup so event kernels can convert a raster map code to a 1-based internal
+region index without joins or searches.
+
+No additional ordering constraint is imposed on Base Fire MinSize, MeanSize and
+MaxSize because the reference FireRegion/InputParameterParser does not impose
+one. FuelCurve and WindCurve validation also intentionally remain distinct
+because the reference C# setters use slightly different ordering rules.
+
+These are compatibility details of the Base Fire profile, not generic
+requirements of landisR.fire.

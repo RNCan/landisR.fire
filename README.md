@@ -26,3 +26,9 @@ prepared <- fire_prepare(model, landscape)
 ```
 
 Custom components can remain pure R functions, while built-in components may later use vectorized R or Rcpp kernels where profiling demonstrates a real bottleneck.
+
+## Base Fire compatibility work
+
+The first Base Fire-specific layer is now kept internal while equivalence is being established. It represents and validates the native Base Fire region parameters, dynamic region schedule, fuel curves, wind curves, damage classes and species fire tolerance. It also prepares compact numeric lookup structures for later ignition, spread, severity and mortality kernels.
+
+Base Fire-specific functions are deliberately not exported yet. They will become public only after event-level behavior has been validated against LANDIS-II Base Fire.
