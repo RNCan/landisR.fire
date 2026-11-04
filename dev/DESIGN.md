@@ -281,3 +281,15 @@ implementations:
 The next architectural step is not another process kernel. It is an internal
 Base Fire profile/orchestrator that wires these validated components together
 and translates complete events to the generic landisR fire interface.
+
+## Cross-event initiation occupancy
+
+A cross-component source review identified one behavior not visible in
+isolated Spread() tests: PlugIn.Run() calls FireEvent.Initiate() on every
+active site without checking SiteVars.Event[site]. If initiation succeeds,
+Spread() assigns SiteVars.Event[site] to the new event. Therefore the
+initiation site itself is not rejected when already occupied, while
+neighbor candidates are still skipped when SiteVars.Event is non-null.
+
+The R compatibility runner follows that asymmetry. This matters primarily
+for complete timestep orchestration and deterministic RNG tests.

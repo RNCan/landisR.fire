@@ -590,9 +590,11 @@
     .fire_stop('event_occupied must be one logical value per active cell.')
   }
 
-  if (event_occupied[initiation_cell_index]) {
-    .fire_stop('The Base Fire initiation cell is already occupied by an event.')
-  }
+  # Strict Base Fire compatibility: PlugIn.Run() calls Initiate() on every
+  # active site without checking SiteVars.Event first. Spread() then assigns
+  # SiteVars.Event[site] = this. Therefore an already occupied initiation
+  # site is not rejected here; its event reference is effectively overwritten.
+  # Neighbor candidates remain blocked by event_occupied as before.
 
   if (is.null(last_fire_year)) {
     last_fire_year <- burn_prepared$last_fire_year

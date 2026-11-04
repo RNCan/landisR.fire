@@ -118,3 +118,11 @@ the division of responsibility in LANDIS-II.
 All six fundamental Base Fire process components are now internally
 implemented. Complete event-level assembly and cross-engine validation remain
 to be done before Base Fire is exposed as a public profile.
+
+## Base Fire cross-event initiation compatibility
+
+Strict Base Fire compatibility does not reject an initiation site merely
+because it already belongs to another fire event in the current timestep.
+`PlugIn.Run()` calls `Initiate()` for every active site, while neighbor
+spread still excludes sites already assigned to an event. The internal
+spread runner preserves this asymmetric reference behavior.

@@ -505,3 +505,42 @@ test_that('Base Fire spread and burn probability are real components', {
     attr(.basefire_burn_probability, 'fire_prepare')
   ))
 })
+
+test_that('Occupied initiation site is not rejected by strict Base Fire spread', {
+  fx <- make_spread_fixture()
+
+  source_id <- fx$grid$cell_id[
+    fx$grid$row == 3 & fx$grid$col == 3
+  ]
+  source <- match(source_id, fx$topology$cell_id)
+
+  occupied <- rep(FALSE, length(fx$topology$cell_id))
+  occupied[source] <- TRUE
+
+  out <- .basefire_run_spread_event(
+    initiation_cell_index = source,
+    current_time = 20,
+    spread_prepared = fx$spread,
+    size_prepared = fx$size,
+    burn_prepared = fx$burn,
+    severity_fun = function(cell_index, current_time) 1,
+    damage_fun = function(cell_index, severity, current_time) 0L,
+    size_fun = function(
+      region_index,
+      prepared,
+      exponential_draw,
+      diagnostics = FALSE) 1L,
+    event_occupied = occupied,
+    next_double = function(n = 1L) rep(1, n),
+    generate_uniform = function(n = 1L) rep(0.5, n),
+    shuffle_fun = function(x) x,
+    wind_direction = 0,
+    wind_speed = 0
+  )
+
+  expect_equal(out$num_site_checked, 1L)
+  expect_equal(out$total_sites_in_event, 1L)
+  expect_true(out$event_occupied[source])
+  expect_true(out$event_member[source])
+  expect_true(out$cells$burned[out$cells$cell_index == source])
+})
