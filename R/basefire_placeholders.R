@@ -2,7 +2,8 @@
 # They are deliberately not exported until their behavior is validated
 # against LANDIS-II Base Fire.
 #
-# Ignition is now implemented in basefire_ignition.R.
+# Ignition is implemented in basefire_ignition.R.
+# Target fire size is implemented in basefire_size.R.
 
 .basefire_not_implemented <- function(component) {
   function(...) {
@@ -10,7 +11,6 @@
   }
 }
 
-.basefire_size <- .basefire_not_implemented('size')
 .basefire_spread <- .basefire_not_implemented('spread')
 .basefire_burn_probability <- .basefire_not_implemented('burn_probability')
 .basefire_severity <- .basefire_not_implemented('severity')

@@ -173,3 +173,28 @@ before later active cells are visited.
 
 Performance is obtained instead by preparing region indices, annual ignition
 probabilities, fire-spread ages and last-fire years into contiguous vectors.
+
+## Base Fire target-size component
+
+`FireEvent.ComputeSize()` is implemented as the first concrete target-size
+component.
+
+The compatibility kernel preserves:
+
+- immediate zero when `MeanSize <= 0`;
+- exponential rate `1 / MeanSize`;
+- one distribution draw otherwise;
+- strict `< MinSize` and `> MaxSize` bounding;
+- literal branch behavior even for unordered Min/Mean/Max inputs;
+- conversion from area to number of cells by division by `CellArea` followed
+  by integer truncation;
+- no forced minimum of one cell.
+
+The exponential generator is injected behind a small function boundary. This
+keeps the Base Fire statistical model independent of the package RNG
+implementation and will let a ModelCore-compatible generator be substituted if
+cross-engine random-stream equivalence is required.
+
+This module is also the first demonstration of the intended extension design:
+the generic fire engine depends on a `size` component, not on Base Fire's
+exponential distribution.

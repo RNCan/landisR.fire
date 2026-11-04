@@ -46,3 +46,17 @@ prepared into compact vectors first, so this sequential control flow does not
 require repeated data extraction or joins.
 
 Base Fire remains internal until full event-level equivalence is validated.
+
+## Base Fire target size
+
+The internal Base Fire profile now reproduces `FireEvent.ComputeSize()`.
+`MeanSize` parameterizes an exponential distribution through
+`lambda = 1 / MeanSize`; the generated area is bounded by `MinSize` and
+`MaxSize`, divided by cell area, and truncated to an integer number of cells.
+
+A non-positive `MeanSize` returns zero without consuming a size draw. Base Fire
+also does not force positive generated areas to at least one raster cell.
+
+The implementation remains behind the generic replaceable `size` component, so
+future empirical or alternative fire-size distributions do not require changes
+to ignition, spread, severity or mortality.
