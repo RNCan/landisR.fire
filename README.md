@@ -126,3 +126,21 @@ because it already belongs to another fire event in the current timestep.
 `PlugIn.Run()` calls `Initiate()` for every active site, while neighbor
 spread still excludes sites already assigned to an event. The internal
 spread runner preserves this asymmetric reference behavior.
+
+## Complete internal Base Fire profile
+
+The six validated Base Fire kernels are now assembled through the generic
+`fire_model()` and `fire_prepare()` contracts into an internal strict
+compatibility profile.
+
+The timestep runner follows the original active-site ordering: successful
+ignitions spread immediately and update fire history and cohort state before
+later active sites are evaluated. Dynamic fire-region maps can be injected
+through a map-reader callback and trigger a refresh of region-dependent caches.
+
+Integration results distinguish raw initiated events, standard burned-cell
+`fire_event` objects and Base Fire loggable events. This preserves legacy Base
+Fire behavior while keeping the generic event contract clean.
+
+The profile is intentionally still internal. The next major integration step is
+the handoff of standard events to `landisR::landis_fire()`.

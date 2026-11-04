@@ -293,3 +293,27 @@ neighbor candidates are still skipped when SiteVars.Event is non-null.
 
 The R compatibility runner follows that asymmetry. This matters primarily
 for complete timestep orchestration and deterministic RNG tests.
+
+## Complete Base Fire profile assembly
+
+The six process kernels are wired using the same generic model interface as all
+future fire models. Base Fire does not receive a parallel monolithic engine.
+
+The strict timestep orchestrator is Base Fire-specific because ordering itself
+is part of the reference behavior:
+
+- per-timestep event/severity/disturbed state is reset;
+- dynamic fire-region maps are applied before site iteration;
+- active cells are evaluated in landscape order;
+- successful events spread immediately;
+- fire and cohort state changes are visible to later ignition attempts.
+
+The internal integration harness mutates a simple cohort table only for
+end-to-end validation. This is deliberately temporary. Forest application must
+ultimately occur through the landisR fire interface so landisR remains the
+owner of succession state and post-fire ecological response.
+
+The result retains both strict Base Fire diagnostics and generic
+`landisR_fire_event` objects. This separation is important for future
+`basefire_clean` work: legacy quirks can remain testable in the strict profile
+without being imposed on generic event consumers.
