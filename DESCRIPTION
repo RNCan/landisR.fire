@@ -1,14 +1,16 @@
 Package: landisR.fire
 Type: Package
 Title: Modular Fire Models for landisR
-Version: 0.1.0.9000
+Version: 0.1.0.9001
 Authors@R: person('Yan', 'Boulanger', role = c('aut', 'cre'))
 Description: Provides an external, modular fire-model framework designed to
     interact with landisR without becoming part of the landisR succession
-    engine. Fire ignition, target size, cell-to-cell spread, severity and
-    mortality are explicit replaceable components. The first reference
-    implementation will reproduce LANDIS-II Base Fire before extended
-    alternatives are developed.
+    engine. Fire ignition, target size, cell-to-cell spread, conditional burn
+    probability, severity and mortality are explicit replaceable components.
+    Components may prepare reusable numeric caches before simulation so flexible
+    scientific models do not require repeated expensive data extraction inside
+    fire-spread loops. The first reference implementation will reproduce
+    LANDIS-II Base Fire before extended alternatives are developed.
 License: file LICENSE
 Encoding: UTF-8
 LazyData: true
