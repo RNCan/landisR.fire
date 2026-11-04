@@ -225,3 +225,24 @@ The event runner uses an integer FIFO queue plus logical `in_queue` and
 The runner currently receives severity and damage as callbacks. This keeps the
 spatial layer testable before severity and mortality are implemented while also
 preserving the intended modular architecture.
+
+## Base Fire severity component
+
+`severity` now reproduces `FireEvent.CalcSeverity()` independently of mortality.
+
+Fuel severity uses time since last fire with `>=` comparisons against
+region-specific severity thresholds 1 through 5.
+
+Wind severity is optional and only evaluated when a TimeOfLastWind state exists.
+It uses `<=` comparisons against region-specific thresholds, preserving the
+reference C# logic.
+
+The final severity is the maximum of the two.
+
+The prepared cache holds region indices, last-fire years, optional last-wind
+years, and the already prepared fuel/wind matrices. No joins or forest-state
+extraction occur inside the per-cell calculation.
+
+Keeping severity separate from mortality is intentional. It allows future fire
+models to replace severity mechanisms without replacing cohort-damage rules,
+and vice versa.

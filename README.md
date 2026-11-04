@@ -79,3 +79,21 @@ burn probability.
 
 Severity and mortality remain injected callbacks/placeholders until their own
 compatibility kernels are implemented and validated.
+
+## Base Fire severity
+
+The internal Base Fire profile now reproduces `FireEvent.CalcSeverity()`.
+
+Fuel severity increases with time since the last fire according to the region's
+five `FuelCurve` thresholds. If an external wind-disturbance history is
+available, wind severity is also calculated using the region's `WindCurve`
+thresholds and time since the last wind event. Final severity is the maximum of
+the fuel and wind severities.
+
+Wind history remains optional because Base Fire itself does not create
+`Wind.TimeOfLastEvent`; LANDIS-II obtains that site variable from another
+extension when available.
+
+Severity is still a replaceable process component, so future models can use
+composition, biomass, fuel types, weather or other predictors without changing
+Base Fire ignition, size or spatial spread.

@@ -1,7 +1,7 @@
 Package: landisR.fire
 Type: Package
 Title: Modular Fire Models for landisR
-Version: 0.1.0.9005
+Version: 0.1.0.9006
 Authors@R: person('Yan', 'Boulanger', role = c('aut', 'cre'))
 Description: Provides an external, modular fire-model framework designed to
     interact with landisR without becoming part of the landisR succession
