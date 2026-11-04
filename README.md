@@ -32,3 +32,17 @@ Custom components can remain pure R functions, while built-in components may lat
 The first Base Fire-specific layer is now kept internal while equivalence is being established. It represents and validates the native Base Fire region parameters, dynamic region schedule, fuel curves, wind curves, damage classes and species fire tolerance. It also prepares compact numeric lookup structures for later ignition, spread, severity and mortality kernels.
 
 Base Fire-specific functions are deliberately not exported yet. They will become public only after event-level behavior has been validated against LANDIS-II Base Fire.
+
+## Base Fire ignition
+
+The internal Base Fire compatibility profile now includes the event-initiation
+kernel from `FireEvent.Initiate()`. It preserves the two-stage probability
+gate, time-since-fire response, severity > 0 gate and short-circuit RNG order.
+
+The kernel is intentionally evaluated one active cell at a time because a
+successful Base Fire event spreads immediately and changes fire state before
+later landscape cells are tested. Region-level values and last-fire years are
+prepared into compact vectors first, so this sequential control flow does not
+require repeated data extraction or joins.
+
+Base Fire remains internal until full event-level equivalence is validated.

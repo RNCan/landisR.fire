@@ -148,3 +148,28 @@ because the reference C# setters use slightly different ordering rules.
 
 These are compatibility details of the Base Fire profile, not generic
 requirements of landisR.fire.
+
+## Base Fire ignition kernel
+
+Strict Base Fire compatibility uses sequential event initiation in active-cell
+landscape order.
+
+The ignition component separates two probability concepts already present in
+the reference C#:
+
+1. annual `IgnitionProbability * timestep`;
+2. `ComputeFireInitSpreadProb`, based on time since last fire and
+   `FireSpreadAge`.
+
+The second random draw occurs only if the first test succeeds. Severity is
+evaluated only if both random-probability tests succeed, and the site must have
+severity > 0 before an event is constructed.
+
+This short-circuit order is preserved even though a vectorized implementation
+would be shorter, because pre-generating all random values would change the RNG
+stream. Event initiation also cannot be safely precomputed for a whole
+timestep: a successful fire spreads immediately and updates last-fire state
+before later active cells are visited.
+
+Performance is obtained instead by preparing region indices, annual ignition
+probabilities, fire-spread ages and last-fire years into contiguous vectors.

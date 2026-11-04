@@ -1,6 +1,8 @@
 # Internal placeholders defining the Base Fire modules to be implemented next.
 # They are deliberately not exported until their behavior is validated
 # against LANDIS-II Base Fire.
+#
+# Ignition is now implemented in basefire_ignition.R.
 
 .basefire_not_implemented <- function(component) {
   function(...) {
@@ -8,7 +10,6 @@
   }
 }
 
-.basefire_ignition <- .basefire_not_implemented('ignition')
 .basefire_size <- .basefire_not_implemented('size')
 .basefire_spread <- .basefire_not_implemented('spread')
 .basefire_burn_probability <- .basefire_not_implemented('burn_probability')
