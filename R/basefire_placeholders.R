@@ -4,6 +4,8 @@
 #
 # Ignition is implemented in basefire_ignition.R.
 # Target fire size is implemented in basefire_size.R.
+# Wind-driven candidate spread and the TSF burn-probability gate are
+# implemented in basefire_spread.R.
 
 .basefire_not_implemented <- function(component) {
   function(...) {
@@ -11,7 +13,5 @@
   }
 }
 
-.basefire_spread <- .basefire_not_implemented('spread')
-.basefire_burn_probability <- .basefire_not_implemented('burn_probability')
 .basefire_severity <- .basefire_not_implemented('severity')
 .basefire_mortality <- .basefire_not_implemented('mortality')

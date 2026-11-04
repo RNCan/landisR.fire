@@ -60,3 +60,22 @@ also does not force positive generated areas to at least one raster cell.
 The implementation remains behind the generic replaceable `size` component, so
 future empirical or alternative fire-size distributions do not require changes
 to ignition, spread, severity or mortality.
+
+## Base Fire spatial spread
+
+The internal Base Fire profile now includes the wind-driven `GetNeighbors()`
+logic and the FIFO event-spread control flow.
+
+The eight nearest geometric sites are filtered with the original directional
+wind probabilities, and a ninth site two cells downwind may also be selected.
+For strict compatibility, inactive geometric sites remain in the candidate list
+through neighbor selection and shuffling, then are skipped before the
+time-since-fire gate.
+
+The original post-wind spread probability is implemented as the separate
+`burn_probability` component. This means Base Fire now demonstrates four
+concrete replaceable process modules: ignition, size, spread and conditional
+burn probability.
+
+Severity and mortality remain injected callbacks/placeholders until their own
+compatibility kernels are implemented and validated.

@@ -198,3 +198,30 @@ cross-engine random-stream equivalence is required.
 This module is also the first demonstration of the intended extension design:
 the generic fire engine depends on a `size` component, not on Base Fire's
 exponential distribution.
+
+## Base Fire spread and burn-probability components
+
+Base Fire spatial behavior is decomposed without changing its control flow.
+
+`spread` reproduces `GetNeighbors()`:
+
+- 8-direction first-ring geometry;
+- wind-direction rotation;
+- wind-speed probability vector;
+- separate `NextDouble()` draws for existing first-ring sites;
+- optional ninth site two cells downwind.
+
+`burn_probability` reproduces the later
+`GenerateUniform() <= ComputeFireInitSpreadProb()` gate.
+
+A Base Fire-specific full-site topology is prepared in addition to the generic
+active-cell topology because inactive sites still consume `NextDouble()` and
+participate in the shuffled candidate list in the reference C#.
+
+The event runner uses an integer FIFO queue plus logical `in_queue` and
+`event_occupied` vectors. This is semantically equivalent to the C#
+`Queue<Site>` / `Contains()` checks but avoids repeated linear searches.
+
+The runner currently receives severity and damage as callbacks. This keeps the
+spatial layer testable before severity and mortality are implemented while also
+preserving the intended modular architecture.
