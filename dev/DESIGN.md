@@ -246,3 +246,38 @@ extraction occur inside the per-cell calculation.
 Keeping severity separate from mortality is intentional. It allows future fire
 models to replace severity mechanisms without replacing cohort-damage rules,
 and vice versa.
+
+## Base Fire mortality component
+
+`mortality` reproduces `FireEvent.ReduceOrKillMarkedCohort()`.
+
+The component is deliberately independent from `severity`:
+
+- severity 5 is unconditional cohort mortality;
+- lower severities compare `severity - fire_tolerance` against the damage
+  table;
+- age sensitivity is based on `cohort_age / species_longevity`;
+- the first matching damage row kills the cohort;
+- return value is exactly 1.0 for killed and 0.0 for surviving cohorts.
+
+The executed current C# scans the increasing damage table forward, despite a
+stale source comment suggesting a reverse scan. The compatibility kernel
+follows executed behavior.
+
+Species longevity is external to Base Fire and is prepared from landisR/core
+species context. Species fire tolerance and damage classes come from the
+Base Fire parameter cache.
+
+With this layer, the six process contracts all have internal Base Fire
+implementations:
+
+1. ignition
+2. size
+3. spread
+4. burn_probability
+5. severity
+6. mortality
+
+The next architectural step is not another process kernel. It is an internal
+Base Fire profile/orchestrator that wires these validated components together
+and translates complete events to the generic landisR fire interface.

@@ -97,3 +97,24 @@ extension when available.
 Severity is still a replaceable process component, so future models can use
 composition, biomass, fuel types, weather or other predictors without changing
 Base Fire ignition, size or spatial spread.
+
+## Base Fire cohort mortality
+
+The internal Base Fire profile now reproduces the cohort-damage callback used
+by `FireEvent`.
+
+Severity 5 kills all cohorts. At lower severities, mortality depends on the
+difference between site fire severity and species fire tolerance, together with
+cohort age as a fraction of species longevity and the Base Fire damage table.
+
+A matching cohort is removed completely (`1.0`); otherwise it survives
+unchanged (`0.0`). Base Fire does not perform partial biomass reduction in this
+callback.
+
+Species fire tolerance remains part of the Base Fire parameter cache, while
+species longevity is supplied by external landisR/core species context, matching
+the division of responsibility in LANDIS-II.
+
+All six fundamental Base Fire process components are now internally
+implemented. Complete event-level assembly and cross-engine validation remain
+to be done before Base Fire is exposed as a public profile.
