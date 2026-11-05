@@ -362,31 +362,25 @@ test_that('Dynamic region reader refreshes region-dependent caches', {
   ))
 })
 
-test_that('Base Fire profile remains internal', {
-  wd <- normalizePath(
-    getwd(),
-    winslash = '/',
-    mustWork = TRUE
+test_that('Base Fire exposes only the high-level public workflow', {
+  exports <- getNamespaceExports('landisR.fire')
+
+  expected <- c(
+    'basefire_read',
+    'basefire_prepare',
+    'basefire_step'
   )
 
-  candidates <- c(
-    file.path(wd, 'NAMESPACE'),
-    file.path(wd, '..', 'NAMESPACE'),
-    file.path(wd, '..', '..', 'NAMESPACE')
-  )
+  expect_true(all(expected %in% exports))
 
-  namespace_file <- candidates[file.exists(candidates)][1L]
+  expect_false(any(c(
+    '.basefire_read_parameters',
+    '.basefire_prepare_landisR',
+    '.basefire_step_landisR',
+    '.basefire_landisR_state',
+    '.basefire_landisR_update'
+  ) %in% exports))
 
-  expect_false(is.na(namespace_file))
-
-  namespace <- readLines(
-    namespace_file,
-    warn = FALSE
-  )
-
-  expect_false(any(grepl(
-    'basefire',
-    namespace,
-    ignore.case = TRUE
-  )))
+  fx <- make_basefire_profile_fixture()
+  expect_true(isTRUE(fx$profile$model$metadata$public))
 })

@@ -10,7 +10,7 @@
     metadata = list(
       profile = 'basefire',
       compatibility = 'strict',
-      public = FALSE
+      public = TRUE
     )
   )
 }

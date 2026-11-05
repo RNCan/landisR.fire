@@ -8,5 +8,5 @@
 #   severity
 #   mortality
 #
-# Base Fire remains internal until complete event-level integration and
-# equivalence validation are finished.
+# The strict Base Fire profile has completed event-level integration with
+# landisR through the public basefire_read/prepare/step workflow.
