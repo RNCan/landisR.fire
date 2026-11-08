@@ -143,7 +143,7 @@
   invisible(TRUE)
 }
 
-.basefire_validate_cohort_table <- function(
+.basefire_validate_cohort_table_legacy_270B <- function(
     cohorts,
     topology) {
 
@@ -515,7 +515,7 @@
   )
 }
 
-.basefire_run_timestep <- function(
+.basefire_run_timestep_legacy_270C <- function(
     prepared_profile,
     current_time,
     cohorts,

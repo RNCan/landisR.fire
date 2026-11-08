@@ -27,10 +27,12 @@ basefire_step(
   prepared,
   rng = list(),
   stochastic_serotiny = TRUE,
-  metadata = list()
+  metadata = list(), progress = FALSE, verbose = FALSE
 )
 }
 \arguments{
+  \item{progress}{Logical. Show progress information in the console; default \code{FALSE}.}
+  \item{verbose}{Logical. Show detailed console messages; default \code{FALSE}.}
   \item{path}{Path to a LANDIS-II Base Fire parameter file.}
   \item{known_species}{Optional character vector of species codes allowed
   in the Base Fire species table.}

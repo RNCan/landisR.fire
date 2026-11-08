@@ -410,7 +410,7 @@ basefire_prepare <- function(
   )
 }
 
-basefire_step <- function(
+.basefire_step_legacy_270B <- function(
     simulation,
     prepared,
     rng = list(),
