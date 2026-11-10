@@ -27,10 +27,17 @@ basefire_step(
   prepared,
   rng = list(),
   stochastic_serotiny = TRUE,
-  metadata = list(), progress = FALSE, verbose = FALSE
+  metadata = list(), progress = FALSE, verbose = FALSE,
+  output_dir = NULL, output_formats = c("csv", "rds"),
+  raster_template = NULL, cell_length = NULL, overwrite_outputs = FALSE
 )
 }
 \arguments{
+  \item{output_dir}{Optional parent directory for per-timestep fire outputs. NULL disables writing.}
+  \item{output_formats}{Subset of \code{c("csv", "rds", "tif")}; default CSV and RDS.}
+  \item{raster_template}{Optional georeferenced one-layer terra raster (or path) used for GeoTIFF grid geometry.}
+  \item{cell_length}{Optional relative grid cell size if no georeferenced raster is supplied.}
+  \item{overwrite_outputs}{Allow replacing an existing annual output folder; default FALSE.}
   \item{progress}{Logical. Show progress information in the console; default \code{FALSE}.}
   \item{verbose}{Logical. Show detailed console messages; default \code{FALSE}.}
   \item{path}{Path to a LANDIS-II Base Fire parameter file.}
