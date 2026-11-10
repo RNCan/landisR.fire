@@ -69,6 +69,14 @@ basefire_step(
   \item{metadata}{Named list appended to the landisR fire-event metadata.}
 }
 \details{
+The native fused Base Fire backend is selected by default for the strict
+model with standard random-number and wind controls. Custom RNG or wind
+hooks use the legacy backend when no backend option is set. Explicitly set
+\code{options(landisR.fire.backend = "legacy")} to use the legacy engine,
+or \code{options(landisR.fire.backend = "native")} to require the native
+engine. Explicit native selection rejects unsupported RNG or wind hooks.
+The backend option does not change the succession engine.
+
 \code{basefire_read()} parses the strict LANDIS-II Base Fire parameter
 format and preserves the compatibility rules implemented by
 \pkg{landisR.fire}.

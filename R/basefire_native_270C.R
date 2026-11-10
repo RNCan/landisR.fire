@@ -329,7 +329,17 @@
 # Signature historique stricte : option seulement, sans nouvel argument.
 .basefire_run_timestep <- function(prepared_profile, current_time,
                                    cohorts, rng = list()) {
-  backend <- getOption('landisR.fire.backend','legacy')
+  backend <- getOption("landisR.fire.backend", NULL)
+  if (is.null(backend)) {
+    rr <- .basefire_normalize_rng(rng)
+    compatible <- identical(prepared_profile$model$name, "basefire-strict") &&
+      identical(rr$ignition_uniform, stats::runif) &&
+      identical(rr$generate_uniform, stats::runif) &&
+      identical(rr$next_double, stats::runif) &&
+      identical(rr$shuffle_fun, .basefire_default_shuffle) &&
+      is.null(rr$wind_direction) && is.null(rr$wind_speed)
+    backend <- if (compatible) "native" else "legacy"
+  }
   if (!identical(backend,'legacy') && !identical(backend,'native'))
     stop('landisR.fire.backend doit etre legacy ou native.',call.=FALSE)
   if (identical(backend,'native')) {
@@ -349,11 +359,11 @@
                 'basefire_kernel_stats_249')
   available <- vapply(expected,exists,logical(1),envir=ns,
                       mode='function', inherits=FALSE)
-  backend <- getOption('landisR.fire.backend','legacy')
+  backend <- getOption("landisR.fire.backend", "native")
   list(package_version=as.character(utils::packageVersion('landisR.fire')),
        compiled_entrypoints=available,
        native_validation_default=isTRUE(getOption('landisR.fire.native_validation',TRUE)),
        fused_native_backend_active=identical(backend,'native'),
        production_fire_backend=backend,
-       information='270C test library: native opt-in, legacy default until frozen 245 validation')
+       information='Native default for strict Base Fire with standard RNG; legacy available for custom hooks.')
 }
