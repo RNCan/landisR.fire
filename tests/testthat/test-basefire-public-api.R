@@ -16,6 +16,6 @@ test_that('Base Fire public workflow is intentionally minimal', {
 
   expect_identical(
     basefire_exports,
-    sort(c("basefire_prepare", "basefire_read", "basefire_step", "basefire_write_outputs"))
+    sort(c("basefire_prepare", "basefire_read", "basefire_step", "basefire_write_outputs", "basefire_parameter_schedule", "basefire_update_parameters", "basefire_step_dynamic"))
   )
 })
