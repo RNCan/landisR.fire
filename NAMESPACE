@@ -30,3 +30,5 @@ export(basefire_write_outputs)
 export(basefire_parameter_schedule)
 export(basefire_update_parameters)
 export(basefire_step_dynamic)
+
+export(basefire_extension)

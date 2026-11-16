@@ -162,6 +162,7 @@
     full_to_active = full_to_active,
     active_to_full = as.integer(active_to_full),
     directions = directions,
+    scan_order_v7 = order(source_row, source_col, method = "radix"),
     neighbors_full = build_ring(1L),
     second_neighbors_full = build_ring(2L)
   )

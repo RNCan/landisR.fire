@@ -29,7 +29,8 @@ basefire_step(
   stochastic_serotiny = TRUE,
   metadata = list(), progress = FALSE, verbose = FALSE,
   output_dir = NULL, output_formats = c("csv", "rds"),
-  raster_template = NULL, cell_length = NULL, overwrite_outputs = FALSE
+  raster_template = NULL, cell_length = NULL, overwrite_outputs = FALSE,
+  year = simulation$year
 )
 }
 \arguments{
@@ -45,6 +46,8 @@ basefire_step(
   in the Base Fire species table.}
   \item{base_dir}{Base directory used to resolve relative paths referenced
   by the Base Fire parameter file.}
+  \item{year}{Current or next succession year. The next year is used for a
+  fire applied before succession.}
   \item{simulation}{A live \code{landisR_simulation}.}
   \item{parameters}{A Base Fire parameter object, normally returned by
   \code{basefire_read()}.}

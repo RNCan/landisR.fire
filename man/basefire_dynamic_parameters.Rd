@@ -9,14 +9,15 @@ basefire_parameter_schedule(changes)
 
 basefire_update_parameters(prepared, schedule, current_time)
 
-basefire_step_dynamic(simulation, prepared, parameter_schedule, ...)
+basefire_step_dynamic(simulation, prepared, parameter_schedule, ..., year = simulation$year)
 }
 \arguments{
   \item{changes}{Data frame with \code{year}, exactly one of \code{region_name} or \code{map_code}, and one or more parameter columns. An \code{NA} in a parameter column means unchanged.}
   \item{prepared}{Current profile returned by \code{basefire_prepare()} or by a previous \code{basefire_step()}.}
   \item{schedule}{Validated schedule, or input data frame for \code{basefire_parameter_schedule()}.}
   \item{current_time}{Current landisR simulation year, as a nonnegative integer.}
-  \item{simulation}{Current \code{landisR} simulation. Advance succession with \code{landis_step()} first.}
+  \item{simulation}{Current \code{landisR} simulation.}
+  \item{year}{Current or next succession year.}
   \item{parameter_schedule}{Dynamic parameter schedule.}
   \item{...}{Arguments passed unchanged to \code{basefire_step()}, including output writing arguments.}
 }

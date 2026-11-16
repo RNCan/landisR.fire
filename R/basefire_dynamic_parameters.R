@@ -207,14 +207,14 @@ basefire_update_parameters <- function(prepared, schedule, current_time) {
 #'   `prepared_profile` and unchanged original return field names.
 #' @export
 basefire_step_dynamic <- function(simulation, prepared,
-                                  parameter_schedule, ...) {
+                                  parameter_schedule, ..., year = simulation$year) {
   if (is.null(simulation$year)) {
     stop('simulation$year is required for dynamic Base Fire updates.',
          call. = FALSE)
   }
   prepared <- basefire_update_parameters(
     prepared=prepared, schedule=parameter_schedule,
-    current_time=simulation$year
+    current_time=year
   )
-  basefire_step(simulation=simulation, prepared=prepared, ...)
+  basefire_step(simulation=simulation, prepared=prepared, ..., year=year)
 }

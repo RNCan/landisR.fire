@@ -4,7 +4,7 @@
 
 .basefire_native_run_cpp_270C <- function(prepared_profile, current_time,
                                            cohort_env, runtime,
-                                           last_wind_year, rng) {
+                                           last_wind_year, rng, landis_rng = NULL) {
   # Hooks non standard : refus explicite plutot que changement silencieux du RNG.
   default_shuffle <- .basefire_default_shuffle
   if (!identical(rng$ignition_uniform,stats::runif) ||
@@ -35,6 +35,13 @@
       exponential_draw=rng$exponential_draw
     )
   }
+  v7_config <- if (!is.null(landis_rng)) {
+    scan_order <- topo$scan_order_v7
+    if (is.null(scan_order))
+      scan_order <- order(prepared_profile$topology$row, prepared_profile$topology$col, method = "radix")
+    c(landis_rng, list(scan_order = scan_order, mean_size = pp$size$mean_size,
+      min_size = pp$size$min_size, max_size = pp$size$max_size, cell_area = pp$size$cell_area))
+  }
   basefire_timestep_kernel_260(
     as.integer(current_time), as.numeric(prepared_profile$profile$timestep),
     as.numeric(pp$ignition$ignition_probability),
@@ -51,7 +58,7 @@
     as.numeric(mort$species_longevity),
     as.numeric(mort$damage_max_age),
     as.integer(mort$damage_severity_tolerance_diff),
-    size_one
+    size_one, v7_config
   )
 }
 
@@ -59,7 +66,8 @@
     prepared_profile,
     current_time,
     cohorts,
-    rng = list()) {
+    rng = list(),
+    landis_rng = NULL) {
 
   .basefire_validate_prepared_profile(
     prepared_profile
@@ -202,7 +210,7 @@
   fused270C <- .basefire_native_run_cpp_270C(
     prepared_profile=prepared_profile, current_time=current_time,
     cohort_env=cohort_env, runtime=runtime,
-    last_wind_year=last_wind_year, rng=rng
+    last_wind_year=last_wind_year, rng=rng, landis_rng=landis_rng
   )
   runtime$last_fire_year <- fused270C$last_fire_year
   runtime$event_occupied <- fused270C$event_occupied
@@ -321,6 +329,7 @@
     prepared_profile = prepared_profile
   )
 
+  if (!is.null(landis_rng)) out$landis_rng <- fused270C$landis_rng
   class(out) <- 'landisR_fire_basefire_timestep_result'
   out
 }
@@ -328,7 +337,7 @@
 
 # Signature historique stricte : option seulement, sans nouvel argument.
 .basefire_run_timestep <- function(prepared_profile, current_time,
-                                   cohorts, rng = list()) {
+                                   cohorts, rng = list(), landis_rng = NULL) {
   backend <- getOption("landisR.fire.backend", NULL)
   if (is.null(backend)) {
     rr <- .basefire_normalize_rng(rng)
@@ -342,9 +351,11 @@
   }
   if (!identical(backend,'legacy') && !identical(backend,'native'))
     stop('landisR.fire.backend doit etre legacy ou native.',call.=FALSE)
+  if (!is.null(landis_rng) && backend != "native")
+    stop("The LANDIS-II v7 fire stream requires the native backend.", call. = FALSE)
   if (identical(backend,'native')) {
     return(.basefire_run_timestep_native_270C(prepared_profile,
-               current_time, cohorts, rng))
+               current_time, cohorts, rng, landis_rng))
   }
   .basefire_run_timestep_legacy_270C(prepared_profile, current_time,
                                      cohorts, rng)

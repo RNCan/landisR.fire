@@ -9,11 +9,11 @@ basefire_step <- function(simulation, prepared, rng = list(),
                           progress = FALSE, verbose = FALSE,
                           output_dir = NULL, output_formats = c('csv','rds'),
                           raster_template = NULL, cell_length = NULL,
-                          overwrite_outputs = FALSE) {
+                          overwrite_outputs = FALSE, year = simulation$year) {
   out <- .basefire_step_without_outputs_271(
     simulation=simulation, prepared=prepared, rng=rng,
     stochastic_serotiny=stochastic_serotiny, metadata=metadata,
-    progress=progress, verbose=verbose
+    progress=progress, verbose=verbose, year=year
   )
   if (!is.null(output_dir)) {
     out$output_files <- basefire_write_outputs(

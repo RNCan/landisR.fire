@@ -5,15 +5,15 @@
 .basefire_require_landisR <- function() {
   if (!requireNamespace('landisR', quietly = TRUE)) {
     .fire_stop(
-      'Base Fire landisR coupling requires landisR >= 0.1.0.9003.'
+      'Base Fire landisR coupling requires landisR >= 0.1.0.9008.'
     )
   }
 
   version <- utils::packageVersion('landisR')
 
-  if (version < package_version('0.1.0.9003')) {
+  if (version < package_version('0.1.0.9008')) {
     .fire_stop(
-      'Base Fire landisR coupling requires landisR >= 0.1.0.9003; ',
+      'Base Fire landisR coupling requires landisR >= 0.1.0.9008; ',
       'installed version is ',
       as.character(version),
       '.'
@@ -244,7 +244,7 @@
 
 .basefire_landisR_update <- function(
     fire_result,
-    burned_cells) {
+    burned_cells, preserve_cohort_order = FALSE) {
 
   .basefire_require_landisR()
 
@@ -283,6 +283,7 @@
   landisR::landis_update(
     cohorts = replacement,
     clear_cells = empty,
+    preserve_cohort_order = preserve_cohort_order,
     metadata = list(
       source = 'landisR.fire',
       profile = 'basefire-strict',
@@ -296,7 +297,9 @@
     prepared_profile,
     rng = list(),
     stochastic_serotiny = TRUE,
-    metadata = list()) {
+    metadata = list(),
+    year = simulation$year,
+    use_landis_rng = FALSE) {
 
   .basefire_require_landisR()
   .basefire_validate_prepared_profile(prepared_profile)
@@ -313,14 +316,21 @@
 
   .assert_named_list(metadata, 'metadata')
 
+  if (!is.numeric(year) || length(year) != 1L || is.na(year) ||
+      !year %in% c(simulation$year, simulation$year + simulation$project$canonical$timestep)) {
+    .fire_stop('Fire year must be the current or next succession year.')
+  }
+
   cohorts <- .basefire_landisR_state(simulation)
 
   fire_result <- .basefire_run_timestep(
     prepared_profile = prepared_profile,
-    current_time = as.integer(simulation$year),
+    current_time = as.integer(year),
     cohorts = cohorts,
-    rng = rng
+    rng = rng,
+    landis_rng = if (use_landis_rng) simulation$landis_rng
   )
+  if (use_landis_rng) simulation$landis_rng <- fire_result$landis_rng
 
   burned <- fire_result$severity[
     fire_result$severity$disturbed &
@@ -343,7 +353,8 @@
 
   update <- .basefire_landisR_update(
     fire_result = fire_result,
-    burned_cells = burned$cell_id
+    burned_cells = burned$cell_id,
+    preserve_cohort_order = use_landis_rng
   )
 
   simulation <- landisR::landis_fire(
@@ -352,6 +363,7 @@
     update = update,
     stochastic = stochastic_serotiny,
     severity = as.numeric(burned$severity),
+    year = year,
     metadata = c(
       list(
         source = 'landisR.fire',

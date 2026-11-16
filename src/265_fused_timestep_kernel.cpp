@@ -5,12 +5,39 @@
 // vectors, avoiding repeated R data.frame construction and validation.
 // [[Rcpp::plugins(cpp11)]]
 #include <Rcpp.h>
+#include <landisR/mt19937.hpp>
+#include <memory>
 #include <vector>
 #include <algorithm>
 #include <cmath>
 #include <climits>
 #include <R_ext/Random.h>
 using namespace Rcpp;
+
+// The compatibility stream lives for the entire timestep, including its
+// ignition scan and the propagation of every accepted ignition.
+struct FireV7Random {
+  landis_rng::Stream stream;
+  NumericVector mean_size, min_size, max_size;
+  double cell_area;
+
+  explicit FireV7Random(const List& config) :
+    stream(0), mean_size(config["mean_size"]), min_size(config["min_size"]),
+    max_size(config["max_size"]), cell_area(as<double>(config["cell_area"])) {
+    stream.restore(as<std::string>(config["state"]));
+    stream.draws = landis_rng::Stream::offset(as<double>(config["offset"]));
+  }
+
+  int size(int region) {
+    const double mean = mean_size[region];
+    if (mean <= 0) return 0;
+    double u;
+    do { u = stream.next_double(); } while (u < 1e-6);
+    const double value = -std::log(u) / (1. / mean);
+    return static_cast<int>((value < min_size[region] ? min_size[region] :
+       value > max_size[region] ? max_size[region] : value) / cell_area);
+  }
+};
 
 // 265: One local workspace per fused timestep, reused by every event.
 // No global cache. No per-event O(N) scratch initialization in fused mode.
@@ -25,6 +52,7 @@ struct FireWorkspace265 {
   std::vector<double> site_severity;
   std::vector<int> queue;
   std::vector<int> checked_order;
+  FireV7Random* v7 = nullptr;
 
   explicit FireWorkspace265(int n_cells) : n(n_cells), generation(0),
       events(0), max_queue(0), max_checked(0),
@@ -62,7 +90,7 @@ static double g_event_count_249 = 0.;
 // The destructor also commits on a C++ exception if the lease is held.
 class RngLease249 {
  public:
-  RngLease249() : held_(false) { GetRNGstate(); held_ = true; }
+  explicit RngLease249(bool enabled = true) : held_(enabled) { if (held_) GetRNGstate(); }
   ~RngLease249() noexcept { if (held_) PutRNGstate(); }
   RngLease249(const RngLease249&) = delete;
   RngLease249& operator=(const RngLease249&) = delete;
@@ -166,14 +194,34 @@ List basefire_event_kernel_247(
     stop("247: Invalid event kernel cache dimensions");
   }
 
+  // The 265 fused path uses the single explicitly-owned workspace passed by
+  // the timestep. All scratch arrays are created once for that timestep.
+  // The legacy standalone path is intentionally kept functionally unchanged.
+  FireWorkspace265* workspace265 = NULL;
+  if (sparse_result_264 && workspace_ptr_265 != R_NilValue) {
+    Rcpp::XPtr<FireWorkspace265> xp265(workspace_ptr_265);
+    workspace265 = xp265.get();
+    if (!workspace265 || workspace265->n != n)
+      stop("265: workspace incompatible with landscape");
+    workspace265->start();
+  }
   // 249: exact R RNG, but without a callback into stats::runif(1) per draw.
   // GetRNGstate / PutRNGstate bracket C++ draws. Before any callback that
   // itself draws (size_one/rexp and sample.int), flush .Random.seed, call R,
   // then reload its NEW state. Never hold an Rcpp RNGScope across a callback.
-  RngLease249 synced_rng;
-  auto draw_uniform = [&synced_rng]() -> double {
+  FireV7Random* v7 = workspace265 ? workspace265->v7 : nullptr;
+  RngLease249 synced_rng(!v7);
+  auto draw_uniform = [&]() -> double {
     ++g_event_uniform_draws_249;
-    return synced_rng.uniform();
+    return v7 ? v7->stream.next_double() : synced_rng.uniform();
+  };
+  auto draw_size = [&](int region) -> int {
+    if (v7) return v7->size(region);
+    synced_rng.publish();
+    const int size = as<int>(size_one(region + 1));
+    ++g_event_size_callbacks_249;
+    synced_rng.reload();
+    return size;
   };
 
   // 264: when called by the fused timestep, update its *owned* current-state
@@ -201,24 +249,10 @@ List basefire_event_kernel_247(
   const int source = initiation_cell_index - 1;
   int eco = region_index[source] - 1;
   if (eco < 0 || eco >= n_regions) stop("247: Invalid ignition region");
-  synced_rng.publish();
-  size_targets[eco] = as<int>(size_one(eco+1));
-  ++g_event_size_callbacks_249;
-  synced_rng.reload();
+  size_targets[eco] = draw_size(eco);
   ++g_event_count_249;
   int max_fire_region_size = size_targets[eco];
 
-  // The 265 fused path uses the single explicitly-owned workspace passed by
-  // the timestep. All scratch arrays are created once for that timestep.
-  // The legacy standalone path is intentionally kept functionally unchanged.
-  FireWorkspace265* workspace265 = NULL;
-  if (sparse_result_264 && workspace_ptr_265 != R_NilValue) {
-    Rcpp::XPtr<FireWorkspace265> xp265(workspace_ptr_265);
-    workspace265 = xp265.get();
-    if (!workspace265 || workspace265->n != n)
-      stop("265: workspace incompatible with landscape");
-    workspace265->start();
-  }
   std::vector<int> queue_local;
   std::vector<int> checked_local;
   std::vector<int>& queue = workspace265 ? workspace265->queue : queue_local;
@@ -260,10 +294,7 @@ List basefire_event_kernel_247(
     if (site_region != eco) {
       eco = site_region;
       if (size_targets[eco] < 1) {
-        synced_rng.publish();
-        size_targets[eco] = as<int>(size_one(eco+1));
-        ++g_event_size_callbacks_249;
-        synced_rng.reload();
+        size_targets[eco] = draw_size(eco);
         if (size_targets[eco] > max_fire_region_size)
           max_fire_region_size = size_targets[eco];
       }
@@ -335,34 +366,46 @@ List basefire_event_kernel_247(
     cohorts_killed += killed_here;
     if (killed_here > 0) ++total_sites_damaged;
 
-    // Select eight near neighbors, then the far/downwind neighbor. Each full
-    // neighbor, even if inactive, consumes one RNG draw (same as R).
+    // Base Fire 4.0 consumes a draw even for out-of-bounds neighbors.
+    // Its spatial API returns inactive sites for those positions, and any
+    // selected inactive site still participates in the shuffle.
     int chosen_full[9];
     int n_chosen = 0;
     for (int j=0;j<8;++j) {
       const int full = neighbors_full(site,j);
-      if (full == 0) continue;
+      if (full == 0 && !v7) continue;
       const double p = wind_prob[(j+wind_direction_used) % 8];
       const double draw = draw_uniform();
       if (draw < p) chosen_full[n_chosen++] = full;
     }
-    const int second = second_neighbors_full(site,wind_direction_used);
-    if (second != 0) {
+    // v7 uses a positive row offset for the far neighbor at wind index 0.
+    const int far_direction = v7 ? (12 - wind_direction_used) % 8 : wind_direction_used;
+    const int second = second_neighbors_full(site, far_direction);
+    if (v7 || second != 0) {
       const double draw = draw_uniform();
       if (draw < wind_speed) chosen_full[n_chosen++] = second;
     }
     if (n_chosen == 0) continue;
 
     IntegerVector permutation;
-    if (n_chosen > 1) {
+    if (v7) {
+      // LANDIS-II samples from the remaining list, including its last item.
+      for (int k = 0; k < n_chosen; ++k) {
+        int chosen = k + v7->stream.next(n_chosen - k);
+        const int full = chosen_full[chosen];
+        for (; chosen > k; --chosen) chosen_full[chosen] = chosen_full[chosen - 1];
+        chosen_full[k] = full;
+      }
+    } else if (n_chosen > 1) {
       synced_rng.publish();
       permutation = sample_int(n_chosen);
       ++g_event_shuffle_callbacks_249;
       synced_rng.reload();
     }
     for (int k=0;k<n_chosen;++k) {
-      const int chosen = (n_chosen > 1) ? permutation[k]-1 : 0;
+      const int chosen = v7 ? k : (n_chosen > 1 ? permutation[k] - 1 : 0);
       const int full = chosen_full[chosen] - 1;
+      if (v7 && full == -1) continue;
       if (full < 0 || full >= full_active.size()) stop("247: Invalid full neighbor");
       if (full_active[full] != TRUE) continue;
       const int neighbor = full_to_active[full] - 1;
@@ -484,7 +527,7 @@ List basefire_timestep_kernel_260(
     const NumericVector& species_longevity,
     const NumericVector& damage_max_age,
     const IntegerVector& damage_severity_tolerance_diff,
-    Function size_one) {
+    Function size_one, SEXP v7_config = R_NilValue) {
   const int n = cell_id.size();
   if (n < 1 || ignition_probability.size() != n ||
       ignition_fire_spread_age.size() != n ||
@@ -500,6 +543,18 @@ List basefire_timestep_kernel_260(
   }
   // 265: O(N) scratch initialized only ONCE per timestep, not per fire.
   Rcpp::XPtr<FireWorkspace265> ws265(new FireWorkspace265(n), true);
+  std::unique_ptr<FireV7Random> v7;
+  IntegerVector scan_order;
+  if (!Rf_isNull(v7_config)) {
+    const List config(v7_config);
+    scan_order = config["scan_order"];
+    if (scan_order.size() != n) stop("Invalid LANDIS-II v7 fire scan order");
+    v7.reset(new FireV7Random(config));
+    if (v7->mean_size.size() != n_regions || v7->min_size.size() != n_regions ||
+        v7->max_size.size() != n_regions || !R_finite(v7->cell_area) || v7->cell_area <= 0)
+      stop("Invalid LANDIS-II v7 fire size cache");
+    ws265->v7 = v7.get();
+  }
   NumericVector last_fire = clone(last_fire_year_input);
   LogicalVector occupied = clone(event_occupied_input);
   NumericVector severity(n);
@@ -516,15 +571,18 @@ List basefire_timestep_kernel_260(
   // Keep a lease only across the ignition scan. The event kernel opens its
   // own lease and publishes before calling R's rexp/sample.int callbacks.
   // Never nest leases: publish this one before the event, then reacquire it.
-  RngLease249 lease;
-  for (int pos = 0; pos < n; ++pos) {
+  RngLease249 lease(!v7);
+  auto draw_uniform = [&]() { return v7 ? v7->stream.next_double() : lease.uniform(); };
+  for (int i = 0; i < n; ++i) {
+    const int pos = v7 ? scan_order[i] - 1 : i;
+    if (pos < 0 || pos >= n) stop("Invalid LANDIS-II v7 fire scan position");
     ++scanned;
-    const double u0 = lease.uniform();
+    const double u0 = draw_uniform();
     ++ignition_draws;
     if (!(u0 <= ignition_probability[pos] * timestep)) continue;
     const double dt = current_time - last_fire[pos];
     const double p_fire = 1. - std::exp(dt * (-1. / ignition_fire_spread_age[pos]));
-    const double u1 = lease.uniform();
+    const double u1 = draw_uniform();
     ++ignition_draws;
     if (!(u1 <= p_fire)) continue;
     int reg = region_index[pos] - 1;
@@ -545,7 +603,7 @@ List basefire_timestep_kernel_260(
     }
     if (s <= 0) continue;
 
-    lease.publish();
+    if (!v7) lease.publish();
     List ev = basefire_event_kernel_247(
       pos+1, current_time, cell_id, region_index, n_regions,
       neighbors_full, second_neighbors_full, full_to_active, full_active,
@@ -555,7 +613,7 @@ List basefire_timestep_kernel_260(
       species_fire_tolerance, species_longevity,
       damage_max_age, damage_severity_tolerance_diff, size_one,
       true, ws265); // 265: same sparse results, reusable scratch workspace.
-    lease.reload();
+    if (!v7) lease.reload();
     ++events_run;
     if (events_run > raw_events.size()) {
       const int cap = raw_events.size();
@@ -590,7 +648,7 @@ List basefire_timestep_kernel_260(
   // existing R event logs and metadata can be built unchanged, outside C++.
   List events(events_run);
   for (int i=0;i<events_run;++i) events[i] = raw_events[i];
-  return List::create(
+  List result = List::create(
       _["raw_events"] = events,
       _["last_fire_year"] = last_fire,
       _["event_occupied"] = occupied,
@@ -607,4 +665,9 @@ List basefire_timestep_kernel_260(
       _["workspace_max_checked_265"] = static_cast<int>(ws265->max_checked),
       _["workspace_queue_capacity_265"] = static_cast<int>(ws265->queue.capacity()),
       _["workspace_checked_capacity_265"] = static_cast<int>(ws265->checked_order.capacity()));
+  if (v7) {
+    result["landis_rng"] = List::create(_["state"] = v7->stream.encode(),
+        _["offset"] = static_cast<double>(v7->stream.draws));
+  }
+  return result;
 }
