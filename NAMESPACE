@@ -32,3 +32,5 @@ export(basefire_update_parameters)
 export(basefire_step_dynamic)
 
 export(basefire_extension)
+
+export(basefire_build)

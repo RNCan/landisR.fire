@@ -498,3 +498,55 @@
   class(x) <- 'landisR_fire_basefire_parameter_cache'
   x
 }
+
+.basefire_validate_map_table <- function(map, label, scheduled = FALSE) {
+  columns <- c(if (scheduled) 'year', 'cell_id', 'fire_region_map_code')
+  .basefire_require_columns(map, columns, label)
+  map <- map[columns]
+  for (column in columns)
+    map[[column]] <- .basefire_integer_like(map[[column]], paste0(label, '$', column))
+  if (scheduled && !nrow(map)) return(map)
+  if (!nrow(map) || anyNA(map) || any(map$cell_id < 1L) ||
+      any(map$fire_region_map_code < 0L | map$fire_region_map_code > 65535L))
+    .fire_stop(label, ' must provide positive cell IDs and map codes between 0 and 65535.')
+  if (scheduled && any(map$year < 1L))
+    .fire_stop(label, ' years must be positive.')
+  if (anyDuplicated(map[setdiff(columns, 'fire_region_map_code')]))
+    .fire_stop(label, ' must provide just one code per ',
+               if (scheduled) 'cell and year.' else 'cell.')
+  map
+}
+
+.basefire_table_map_reader <- function(maps) {
+  force(maps)
+  function(map_name, current_time, landscape) maps[[map_name]]
+}
+
+basefire_build <- function(timestep, species, regions, damage, fire_region_map_code,
+                            fuel_curves = NULL, wind_curves = NULL,
+                            dynamic_region_maps = NULL,
+                            map_names_template = "fire-severity-{timestep}.tif",
+                            log_file = "fire-events.csv",
+                            summary_log_file = "fire-summary.csv") {
+  initial <- .basefire_validate_map_table(fire_region_map_code, 'fire_region_map_code')
+  if (!is.null(dynamic_region_maps)) {
+    dynamic_region_maps <- .basefire_validate_map_table(
+      dynamic_region_maps, 'dynamic_region_maps', scheduled = TRUE)
+  }
+  years <- sort(unique(dynamic_region_maps$year))
+  maps <- if (length(years)) {
+    split(dynamic_region_maps[c('cell_id', 'fire_region_map_code')],
+          dynamic_region_maps$year)
+  }
+  schedule <- if (length(years)) data.frame(year = years, map_name = as.character(years))
+  parameters <- .basefire_parameters(
+    timestep = timestep, species = species, regions = regions, damage = damage,
+    initial_fire_regions = "in-memory", dynamic_regions = schedule,
+    fuel_curves = fuel_curves, wind_curves = wind_curves,
+    map_names_template = map_names_template, log_file = log_file,
+    summary_log_file = summary_log_file
+  )
+  parameters$initial_region_codes <- initial
+  if (length(maps)) parameters$dynamic_region_maps <- maps
+  parameters
+}

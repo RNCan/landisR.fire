@@ -22,6 +22,51 @@
   )
 }
 
+.basefire_site_directions <- function() {
+  data.frame(
+    direction = c('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'),
+    drow = c(-1L, -1L, 0L, 1L, 1L, 1L, 0L, -1L),
+    dcol = c(0L, 1L, 1L, 1L, 0L, -1L, -1L, -1L),
+    stringsAsFactors = FALSE
+  )
+}
+
+.basefire_shared_geometry <- function(landscape) {
+  if (anyNA(landscape$active))
+    .fire_stop("The Base Fire active mask cannot contain NA.")
+  if (anyNA(landscape$cell_id) || anyDuplicated(landscape$cell_id))
+    .fire_stop("Base Fire landscape cell identifiers must be unique and non-missing.")
+
+  active_to_full <- which(landscape$active)
+  if (!length(active_to_full))
+    .fire_stop("Base Fire site topology cannot be empty.")
+  active <- structure(list(
+    cell_id = landscape$cell_id[active_to_full],
+    row = landscape$row[active_to_full],
+    col = landscape$col[active_to_full]
+  ), class = "landisR_basefire_active_cells")
+
+  full_to_active <- integer(nrow(landscape))
+  full_to_active[active_to_full] <- seq_along(active_to_full)
+  directions <- .basefire_site_directions()
+  rings <- basefire_site_neighbors(
+    landscape$row, landscape$col, active_to_full,
+    directions$drow, directions$dcol, directions$direction
+  )
+  sites <- structure(list(
+    active_cell_id = active$cell_id,
+    full_cell_id = landscape$cell_id,
+    full_active = landscape$active,
+    full_to_active = full_to_active,
+    active_to_full = active_to_full,
+    directions = directions,
+    scan_order_v7 = order(active$row, active$col, method = "radix"),
+    neighbors_full = rings[[1L]],
+    second_neighbors_full = rings[[2L]]
+  ), class = "landisR_fire_basefire_site_topology")
+  list(active = active, sites = sites)
+}
+
 .basefire_build_site_topology <- function(
     landscape,
     active_topology,
@@ -126,12 +171,7 @@
   source_row <- row_internal[active_to_full]
   source_col <- col_internal[active_to_full]
 
-  directions <- data.frame(
-    direction = c('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'),
-    drow = c(-1L, -1L, 0L, 1L, 1L, 1L, 0L, -1L),
-    dcol = c(0L, 1L, 1L, 1L, 0L, -1L, -1L, -1L),
-    stringsAsFactors = FALSE
-  )
+  directions <- .basefire_site_directions()
 
   build_ring <- function(multiplier) {
     out <- matrix(
@@ -224,7 +264,7 @@
     topology <- fire_grid_topology(landscape)
   }
 
-  validate_fire_topology(topology)
+  .validate_fire_preparation_topology(topology)
 
   cache <- context$basefire_cache
 
@@ -235,13 +275,14 @@
     )
   }
 
-  full_landscape <- context$basefire_full_landscape
-
-  site_topology <- .basefire_build_site_topology(
-    landscape = landscape,
-    active_topology = topology,
-    full_landscape = full_landscape
-  )
+  site_topology <- context$basefire_site_topology
+  if (is.null(site_topology)) {
+    site_topology <- .basefire_build_site_topology(
+      landscape = landscape,
+      active_topology = topology,
+      full_landscape = context$basefire_full_landscape
+    )
+  }
 
   region_index <- .basefire_resolve_region_index(
     landscape = landscape,

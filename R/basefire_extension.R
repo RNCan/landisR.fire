@@ -14,7 +14,7 @@
   list(result = result, rng_state = .GlobalEnv$.Random.seed)
 }
 
-basefire_extension <- function(parameters, fire_region_map_code, cell_area = NULL,
+basefire_extension <- function(parameters, fire_region_map_code = NULL, cell_area = NULL,
                                fire_state = NULL, dynamic_region_map_reader = NULL,
                                time_of_last_wind = NULL, parameter_schedule = NULL,
                                seed = NULL, stochastic_serotiny = TRUE,
@@ -37,8 +37,11 @@ basefire_extension <- function(parameters, fire_region_map_code, cell_area = NUL
     if (shared && is.null(simulation$landis_rng))
       .fire_stop("The shared fire stream requires recruitment_rng = 'landis_v7'.")
     area <- if (is.null(cell_area)) simulation$project$canonical$cell_length^2 / 10000 else cell_area
-    prepared <- basefire_prepare(simulation, parameters, fire_region_map_code, area,
-                                 fire_state, dynamic_region_map_reader, time_of_last_wind)
+    prepared <- .basefire_prepare_landisR(
+      simulation, parameters, fire_region_map_code, area,
+      fire_state, dynamic_region_map_reader, time_of_last_wind,
+      shared_geometry = shared
+    )
     rng_state <- if (!shared) simulation$rng_state
     if (!is.null(seed)) {
       if (!is.numeric(seed) || length(seed) != 1L || !is.finite(seed) ||

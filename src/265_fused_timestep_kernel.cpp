@@ -7,6 +7,7 @@
 #include <Rcpp.h>
 #include <landisR/mt19937.hpp>
 #include <memory>
+#include <chrono>
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -39,6 +40,38 @@ struct FireV7Random {
   }
 };
 
+// Stable cohort ranges indexed by active cell position. Rows in the common
+// cell-ordered table are their own permutation. Other tables retain input
+// row order within each cell and keep the same row IDs for event journals.
+struct FireCohortIndex {
+  std::vector<int> offsets;
+  std::vector<int> row_order;
+
+  void build(int n_cells, const IntegerVector& sites) {
+    if (sites.size() > INT_MAX) stop("Too many cohorts for Base Fire row indices");
+    offsets.assign(static_cast<size_t>(n_cells) + 1, 0);
+    bool in_cell_order = true;
+    int previous = 0;
+    for (int site : sites) {
+      if (site < 0 || site > n_cells) stop("Invalid Base Fire cohort cell position");
+      in_cell_order = in_cell_order && site > 0 && site >= previous;
+      if (site > 0) ++offsets[site];
+      previous = site;
+    }
+    for (size_t site = 1; site < offsets.size(); ++site) {
+      offsets[site] += offsets[site - 1];
+    }
+    if (in_cell_order) return;
+
+    row_order.resize(offsets.back());
+    std::vector<int> next = offsets;
+    for (int row = 0; row < sites.size(); ++row) {
+      const int site = sites[row];
+      if (site > 0) row_order[next[site - 1]++] = row;
+    }
+  }
+};
+
 // 265: One local workspace per fused timestep, reused by every event.
 // No global cache. No per-event O(N) scratch initialization in fused mode.
 // Legacy standalone event calls retain their historical scratch allocation.
@@ -52,6 +85,7 @@ struct FireWorkspace265 {
   std::vector<double> site_severity;
   std::vector<int> queue;
   std::vector<int> checked_order;
+  FireCohortIndex cohort_index;
   FireV7Random* v7 = nullptr;
 
   explicit FireWorkspace265(int n_cells) : n(n_cells), generation(0),
@@ -182,7 +216,7 @@ List basefire_event_kernel_247(
   if (n < 1 || initiation_cell_index < 1 || initiation_cell_index > n ||
       region_index.size() != n || fire_spread_age.size() != n ||
       last_fire_year_input.size() != n || event_occupied_input.size() != n ||
-      rows_by_site.size() != n || neighbors_full.nrow() != n ||
+      neighbors_full.nrow() != n ||
       neighbors_full.ncol() != 8 || second_neighbors_full.nrow() != n ||
       second_neighbors_full.ncol() != 8 || n_regions < 1 ||
       fuel_curve.nrow() < n_regions || fuel_curve.ncol() != 5 ||
@@ -205,6 +239,11 @@ List basefire_event_kernel_247(
       stop("265: workspace incompatible with landscape");
     workspace265->start();
   }
+  const FireCohortIndex* cohort_index =
+    workspace265 && !workspace265->cohort_index.offsets.empty() ?
+      &workspace265->cohort_index : nullptr;
+  if (!cohort_index && rows_by_site.size() != n)
+    stop("247: Invalid event kernel cohort index dimensions");
   // 249: exact R RNG, but without a callback into stats::runif(1) per draw.
   // GetRNGstate / PutRNGstate bracket C++ draws. Before any callback that
   // itself draws (size_one/rexp and sample.int), flush .Random.seed, call R,
@@ -332,35 +371,44 @@ List basefire_event_kernel_247(
     // Deferred mortality mask from 243. The table is compacted by R only once
     // after the timestep, not for each burned site.
     int killed_here = 0;
-    SEXP site_rows_sexp = rows_by_site[site];
-    if (!Rf_isNull(site_rows_sexp)) {
-      IntegerVector rows(site_rows_sexp);
-      for (int i=0;i<rows.size();++i) {
-        const int r = rows[i] - 1;
-        if (r < 0 || r >= alive.size()) stop("247: Invalid cohort row index");
-        if (!alive[r]) continue;
-        bool kill = (severity == 5);
-        if (!kill) {
-          const int sp = cohort_species_index[r] - 1;
-          if (sp < 0 || sp >= species_fire_tolerance.size())
-            stop("247: Invalid cohort species index");
-          const int difference = severity - species_fire_tolerance[sp];
-          const float age_fraction = static_cast<float>(
-            static_cast<float>(cohort_age[r]) /
-            static_cast<float>(species_longevity[sp]));
-          for (int k=0;k<damage_max_age.size();++k) {
-            if (difference >= damage_severity_tolerance_diff[k] &&
-                static_cast<float>(damage_max_age[k]) >= age_fraction) {
-              kill = true;
-              break;
-            }
+    auto apply_mortality = [&](int row) {
+      if (row < 0 || row >= alive.size()) stop("247: Invalid cohort row index");
+      if (!alive[row]) return;
+      bool kill = (severity == 5);
+      if (!kill) {
+        const int sp = cohort_species_index[row] - 1;
+        if (sp < 0 || sp >= species_fire_tolerance.size())
+          stop("247: Invalid cohort species index");
+        const int difference = severity - species_fire_tolerance[sp];
+        const float age_fraction = static_cast<float>(
+          static_cast<float>(cohort_age[row]) /
+          static_cast<float>(species_longevity[sp]));
+        for (int k = 0; k < damage_max_age.size(); ++k) {
+          if (difference >= damage_severity_tolerance_diff[k] &&
+              static_cast<float>(damage_max_age[k]) >= age_fraction) {
+            kill = true;
+            break;
           }
         }
-        if (kill) {
-          alive[r] = false;
-          ++killed_here;
-          if (sparse_result_264) killed_cohort_rows_264.push_back(r + 1);
-        }
+      }
+      if (kill) {
+        alive[row] = false;
+        ++killed_here;
+        if (sparse_result_264) killed_cohort_rows_264.push_back(row + 1);
+      }
+    };
+    if (cohort_index) {
+      const int start = cohort_index->offsets[site];
+      const int end = cohort_index->offsets[site + 1];
+      if (cohort_index->row_order.empty()) {
+        for (int row = start; row < end; ++row) apply_mortality(row);
+      } else {
+        for (int i = start; i < end; ++i) apply_mortality(cohort_index->row_order[i]);
+      }
+    } else {
+      SEXP site_rows = rows_by_site[site];
+      if (!Rf_isNull(site_rows)) {
+        for (int row : IntegerVector(site_rows)) apply_mortality(row - 1);
       }
     }
     cohorts_killed += killed_here;
@@ -519,7 +567,7 @@ List basefire_timestep_kernel_260(
     const NumericVector& last_fire_year_input,
     const LogicalVector& event_occupied_input,
     const NumericVector& last_severity_input,
-    const List& rows_by_site,
+    SEXP rows_by_site,
     Environment cohort_env,
     const NumericVector& cohort_age,
     const IntegerVector& cohort_species_index,
@@ -528,6 +576,11 @@ List basefire_timestep_kernel_260(
     const NumericVector& damage_max_age,
     const IntegerVector& damage_severity_tolerance_diff,
     Function size_one, SEXP v7_config = R_NilValue) {
+  using Clock = std::chrono::steady_clock;
+  using Seconds = std::chrono::duration<double>;
+  const bool timing = !Rf_isNull(v7_config) &&
+    List(v7_config).containsElementNamed("timing") && as<bool>(List(v7_config)["timing"]);
+  const auto start = timing ? Clock::now() : Clock::time_point{};
   const int n = cell_id.size();
   if (n < 1 || ignition_probability.size() != n ||
       ignition_fire_spread_age.size() != n ||
@@ -543,6 +596,17 @@ List basefire_timestep_kernel_260(
   }
   // 265: O(N) scratch initialized only ONCE per timestep, not per fire.
   Rcpp::XPtr<FireWorkspace265> ws265(new FireWorkspace265(n), true);
+  List legacy_rows;
+  const auto index_start = timing ? Clock::now() : Clock::time_point{};
+  if (TYPEOF(rows_by_site) == INTSXP) {
+    const IntegerVector cohort_sites(rows_by_site);
+    if (cohort_sites.size() != cohort_age.size())
+      stop("Invalid Base Fire cohort cell position count");
+    ws265->cohort_index.build(n, cohort_sites);
+  } else {
+    legacy_rows = List(rows_by_site);
+  }
+  const auto index_end = timing ? Clock::now() : Clock::time_point{};
   std::unique_ptr<FireV7Random> v7;
   IntegerVector scan_order;
   if (!Rf_isNull(v7_config)) {
@@ -573,6 +637,8 @@ List basefire_timestep_kernel_260(
   // Never nest leases: publish this one before the event, then reacquire it.
   RngLease249 lease(!v7);
   auto draw_uniform = [&]() { return v7 ? v7->stream.next_double() : lease.uniform(); };
+  const auto scan_start = timing ? Clock::now() : Clock::time_point{};
+  double event_seconds = 0;
   for (int i = 0; i < n; ++i) {
     const int pos = v7 ? scan_order[i] - 1 : i;
     if (pos < 0 || pos >= n) stop("Invalid LANDIS-II v7 fire scan position");
@@ -603,13 +669,14 @@ List basefire_timestep_kernel_260(
     }
     if (s <= 0) continue;
 
+    const auto event_start = timing ? Clock::now() : Clock::time_point{};
     if (!v7) lease.publish();
     List ev = basefire_event_kernel_247(
       pos+1, current_time, cell_id, region_index, n_regions,
       neighbors_full, second_neighbors_full, full_to_active, full_active,
       fire_spread_age, fuel_curve, wind_curve, has_wind,
       last_wind_year, last_fire, occupied,
-      last_severity_input, rows_by_site, cohort_env, cohort_age, cohort_species_index,
+      last_severity_input, legacy_rows, cohort_env, cohort_age, cohort_species_index,
       species_fire_tolerance, species_longevity,
       damage_max_age, damage_severity_tolerance_diff, size_one,
       true, ws265); // 265: same sparse results, reusable scratch workspace.
@@ -643,7 +710,9 @@ List basefire_timestep_kernel_260(
       disturbed[ai] = true;
       last_severity[ai] = sev[j];
     }
+    if (timing) event_seconds += Seconds(Clock::now() - event_start).count();
   }
+  const auto scan_end = timing ? Clock::now() : Clock::time_point{};
   // The raw event objects are returned in identical order and format so
   // existing R event logs and metadata can be built unchanged, outside C++.
   List events(events_run);
@@ -668,6 +737,14 @@ List basefire_timestep_kernel_260(
   if (v7) {
     result["landis_rng"] = List::create(_["state"] = v7->stream.encode(),
         _["offset"] = static_cast<double>(v7->stream.draws));
+  }
+  if (timing) {
+    result["timing"] = NumericVector::create(
+        _["initialisation"] = Seconds(scan_start - start - (index_end - index_start)).count(),
+        _["index_cohortes_natif"] = Seconds(index_end - index_start).count(),
+        _["balayage_et_ignitions"] = Seconds(scan_end - scan_start).count() - event_seconds,
+        _["propagation_et_mortalite"] = event_seconds,
+        _["retour"] = Seconds(Clock::now() - scan_end).count());
   }
   return result;
 }

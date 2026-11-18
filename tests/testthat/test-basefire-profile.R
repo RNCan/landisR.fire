@@ -290,6 +290,9 @@ test_that('Dynamic region year requires explicit map reader', {
 
 test_that('Dynamic region reader refreshes region-dependent caches', {
   fx <- make_basefire_profile_fixture()
+  fx$landscape$active[5L] <- FALSE
+  fx$landscape$fire_region_index <- 1L
+  fx$cohorts <- fx$cohorts[fx$cohorts$cell_id != 5L, ]
 
   parameters <- .basefire_parameters(
     timestep = 10,
@@ -337,10 +340,20 @@ test_that('Dynamic region reader refreshes region-dependent caches', {
           map_name,
           current_time,
           landscape) {
-        rep(2L, nrow(landscape))
+        ifelse(landscape$active, 2L, 0L)
       }
     )
   )
+
+  refreshed <- .basefire_apply_dynamic_region_update(prepared, 10L)
+  replacement <- fx$landscape
+  replacement$fire_region_index <- NULL
+  replacement$fire_region_map_code <- ifelse(replacement$active, 2L, 0L)
+  rebuilt <- .basefire_prepare_profile(
+    profile, replacement, fire_state = prepared$fire_state,
+    context = prepared$context
+  )
+  expect_identical(refreshed, rebuilt)
 
   out <- .basefire_run_timestep(
     prepared_profile = prepared,

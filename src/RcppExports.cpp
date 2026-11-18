@@ -186,7 +186,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // basefire_timestep_kernel_260
-List basefire_timestep_kernel_260(int current_time, double timestep, const NumericVector& ignition_probability, const NumericVector& ignition_fire_spread_age, const IntegerVector& cell_id, const IntegerVector& region_index, int n_regions, const IntegerMatrix& neighbors_full, const IntegerMatrix& second_neighbors_full, const IntegerVector& full_to_active, const LogicalVector& full_active, const NumericVector& fire_spread_age, const NumericMatrix& fuel_curve, const NumericMatrix& wind_curve, bool has_wind, const NumericVector& last_wind_year, const NumericVector& last_fire_year_input, const LogicalVector& event_occupied_input, const NumericVector& last_severity_input, const List& rows_by_site, Environment cohort_env, const NumericVector& cohort_age, const IntegerVector& cohort_species_index, const IntegerVector& species_fire_tolerance, const NumericVector& species_longevity, const NumericVector& damage_max_age, const IntegerVector& damage_severity_tolerance_diff, Function size_one, SEXP v7_config);
+List basefire_timestep_kernel_260(int current_time, double timestep, const NumericVector& ignition_probability, const NumericVector& ignition_fire_spread_age, const IntegerVector& cell_id, const IntegerVector& region_index, int n_regions, const IntegerMatrix& neighbors_full, const IntegerMatrix& second_neighbors_full, const IntegerVector& full_to_active, const LogicalVector& full_active, const NumericVector& fire_spread_age, const NumericMatrix& fuel_curve, const NumericMatrix& wind_curve, bool has_wind, const NumericVector& last_wind_year, const NumericVector& last_fire_year_input, const LogicalVector& event_occupied_input, const NumericVector& last_severity_input, SEXP rows_by_site, Environment cohort_env, const NumericVector& cohort_age, const IntegerVector& cohort_species_index, const IntegerVector& species_fire_tolerance, const NumericVector& species_longevity, const NumericVector& damage_max_age, const IntegerVector& damage_severity_tolerance_diff, Function size_one, SEXP v7_config);
 RcppExport SEXP _landisR_fire_basefire_timestep_kernel_260(SEXP current_timeSEXP, SEXP timestepSEXP, SEXP ignition_probabilitySEXP, SEXP ignition_fire_spread_ageSEXP, SEXP cell_idSEXP, SEXP region_indexSEXP, SEXP n_regionsSEXP, SEXP neighbors_fullSEXP, SEXP second_neighbors_fullSEXP, SEXP full_to_activeSEXP, SEXP full_activeSEXP, SEXP fire_spread_ageSEXP, SEXP fuel_curveSEXP, SEXP wind_curveSEXP, SEXP has_windSEXP, SEXP last_wind_yearSEXP, SEXP last_fire_year_inputSEXP, SEXP event_occupied_inputSEXP, SEXP last_severity_inputSEXP, SEXP rows_by_siteSEXP, SEXP cohort_envSEXP, SEXP cohort_ageSEXP, SEXP cohort_species_indexSEXP, SEXP species_fire_toleranceSEXP, SEXP species_longevitySEXP, SEXP damage_max_ageSEXP, SEXP damage_severity_tolerance_diffSEXP, SEXP size_oneSEXP, SEXP v7_configSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -209,7 +209,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const NumericVector& >::type last_fire_year_input(last_fire_year_inputSEXP);
     Rcpp::traits::input_parameter< const LogicalVector& >::type event_occupied_input(event_occupied_inputSEXP);
     Rcpp::traits::input_parameter< const NumericVector& >::type last_severity_input(last_severity_inputSEXP);
-    Rcpp::traits::input_parameter< const List& >::type rows_by_site(rows_by_siteSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rows_by_site(rows_by_siteSEXP);
     Rcpp::traits::input_parameter< Environment >::type cohort_env(cohort_envSEXP);
     Rcpp::traits::input_parameter< const NumericVector& >::type cohort_age(cohort_ageSEXP);
     Rcpp::traits::input_parameter< const IntegerVector& >::type cohort_species_index(cohort_species_indexSEXP);
@@ -220,6 +220,45 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Function >::type size_one(size_oneSEXP);
     Rcpp::traits::input_parameter< SEXP >::type v7_config(v7_configSEXP);
     rcpp_result_gen = Rcpp::wrap(basefire_timestep_kernel_260(current_time, timestep, ignition_probability, ignition_fire_spread_age, cell_id, region_index, n_regions, neighbors_full, second_neighbors_full, full_to_active, full_active, fire_spread_age, fuel_curve, wind_curve, has_wind, last_wind_year, last_fire_year_input, event_occupied_input, last_severity_input, rows_by_site, cohort_env, cohort_age, cohort_species_index, species_fire_tolerance, species_longevity, damage_max_age, damage_severity_tolerance_diff, size_one, v7_config));
+    return rcpp_result_gen;
+END_RCPP
+}
+// basefire_expand_csr
+Rcpp::DataFrame basefire_expand_csr(const Rcpp::List& states, const Rcpp::IntegerVector& cell_state, const Rcpp::IntegerVector& cell_id, const Rcpp::CharacterVector& species);
+RcppExport SEXP _landisR_fire_basefire_expand_csr(SEXP statesSEXP, SEXP cell_stateSEXP, SEXP cell_idSEXP, SEXP speciesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type states(statesSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type cell_state(cell_stateSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type cell_id(cell_idSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type species(speciesSEXP);
+    rcpp_result_gen = Rcpp::wrap(basefire_expand_csr(states, cell_state, cell_id, species));
+    return rcpp_result_gen;
+END_RCPP
+}
+// basefire_csr_max_age
+Rcpp::NumericVector basefire_csr_max_age(const Rcpp::List& states, const Rcpp::IntegerVector& cell_state);
+RcppExport SEXP _landisR_fire_basefire_csr_max_age(SEXP statesSEXP, SEXP cell_stateSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type states(statesSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type cell_state(cell_stateSEXP);
+    rcpp_result_gen = Rcpp::wrap(basefire_csr_max_age(states, cell_state));
+    return rcpp_result_gen;
+END_RCPP
+}
+// basefire_site_neighbors
+Rcpp::List basefire_site_neighbors(const Rcpp::IntegerVector& rows, const Rcpp::IntegerVector& cols, const Rcpp::IntegerVector& active_to_full, const Rcpp::IntegerVector& drow, const Rcpp::IntegerVector& dcol, const Rcpp::CharacterVector& directions);
+RcppExport SEXP _landisR_fire_basefire_site_neighbors(SEXP rowsSEXP, SEXP colsSEXP, SEXP active_to_fullSEXP, SEXP drowSEXP, SEXP dcolSEXP, SEXP directionsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type rows(rowsSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type cols(colsSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type active_to_full(active_to_fullSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type drow(drowSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type dcol(dcolSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type directions(directionsSEXP);
+    rcpp_result_gen = Rcpp::wrap(basefire_site_neighbors(rows, cols, active_to_full, drow, dcol, directions));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -236,6 +275,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_landisR_fire_basefire_kernel_stats_249", (DL_FUNC) &_landisR_fire_basefire_kernel_stats_249, 0},
     {"_landisR_fire_basefire_event_kernel_247", (DL_FUNC) &_landisR_fire_basefire_event_kernel_247, 28},
     {"_landisR_fire_basefire_timestep_kernel_260", (DL_FUNC) &_landisR_fire_basefire_timestep_kernel_260, 29},
+    {"_landisR_fire_basefire_expand_csr", (DL_FUNC) &_landisR_fire_basefire_expand_csr, 4},
+    {"_landisR_fire_basefire_csr_max_age", (DL_FUNC) &_landisR_fire_basefire_csr_max_age, 2},
+    {"_landisR_fire_basefire_site_neighbors", (DL_FUNC) &_landisR_fire_basefire_site_neighbors, 6},
     {NULL, NULL, 0}
 };
 

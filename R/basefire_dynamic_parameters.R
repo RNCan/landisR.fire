@@ -187,7 +187,8 @@ basefire_update_parameters <- function(prepared, schedule, current_time) {
     landscape=prepared$landscape,
     fire_state=prepared$fire_state,
     context=context,
-    topology=NULL
+    topology=prepared$topology,
+    site_topology=prepared$model$prepared$spread$site_topology
   )
   if (!identical(updated$fire_state, prepared$fire_state)) {
     stop('Unexpected fire_state change during dynamic re-preparation.',

@@ -68,7 +68,7 @@
     topology <- fire_grid_topology(landscape)
   }
 
-  validate_fire_topology(topology)
+  .validate_fire_preparation_topology(topology)
 
   row_index <- match(topology$cell_id, landscape$cell_id)
   if (anyNA(row_index)) {

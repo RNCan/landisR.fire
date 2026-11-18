@@ -1,7 +1,7 @@
 Package: landisR.fire
 Type: Package
 Title: Modular Fire Models for landisR
-Version: 0.1.0.9017
+Version: 0.1.0.9023
 Authors@R: person('Yan', 'Boulanger', email = 'yan.boulanger@nrcan.gc.ca', role = c('aut', 'cre'))
 Description: Provides an external, modular fire-model framework designed to interact with landisR without becoming part of the landisR succession engine. Fire ignition, target size, cell-to-cell spread,
                        conditional burn probability, severity and mortality are explicit replaceable components. Components may prepare reusable numeric caches before simulation so flexible scientific models do
@@ -16,7 +16,7 @@ Collate: 'RcppExports.R' 'utils.R' 'components.R' 'fire_state.R'
         'fire_event.R' 'fire_model.R' 'fire_prepare.R'
         'basefire_parameters.R' 'basefire_parser.R'
         'basefire_ignition.R' 'basefire_size.R' 'basefire_spread.R'
-        'basefire_severity.R' 'basefire_mortality.R'
+        'basefire_severity.R' 'basefire_mortality.R' 'fire_timing.R'
         'basefire_profile.R' 'basefire_landisR.R'
         'basefire_placeholders.R' 'basefire_native_270B.R'
         'basefire_native_270C.R' 'basefire_outputs.R'

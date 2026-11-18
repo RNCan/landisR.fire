@@ -146,6 +146,15 @@ validate_fire_topology <- function(x) {
   invisible(TRUE)
 }
 
+.validate_fire_preparation_topology <- function(x) {
+  if (!inherits(x, "landisR_basefire_active_cells"))
+    return(validate_fire_topology(x))
+  n <- length(x$cell_id)
+  if (!n || length(x$row) != n || length(x$col) != n)
+    .fire_stop("Invalid Base Fire active cell coordinates.")
+  invisible(TRUE)
+}
+
 #' Prepare reusable fire-model caches
 #'
 #' Component preparation is deliberately separated from event execution. A
@@ -176,7 +185,7 @@ fire_prepare <- function(model, landscape, fire_state = NULL,
   }
 
   if (!is.null(topology)) {
-    validate_fire_topology(topology)
+    .validate_fire_preparation_topology(topology)
   }
 
   prepared <- setNames(
@@ -237,7 +246,7 @@ validate_fire_prepared_model <- function(x) {
   }
 
   if (!is.null(x$topology)) {
-    validate_fire_topology(x$topology)
+    .validate_fire_preparation_topology(x$topology)
   }
 
   invisible(TRUE)

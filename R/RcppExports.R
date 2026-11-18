@@ -45,3 +45,15 @@ basefire_timestep_kernel_260 <- function(current_time, timestep, ignition_probab
     .Call(`_landisR_fire_basefire_timestep_kernel_260`, current_time, timestep, ignition_probability, ignition_fire_spread_age, cell_id, region_index, n_regions, neighbors_full, second_neighbors_full, full_to_active, full_active, fire_spread_age, fuel_curve, wind_curve, has_wind, last_wind_year, last_fire_year_input, event_occupied_input, last_severity_input, rows_by_site, cohort_env, cohort_age, cohort_species_index, species_fire_tolerance, species_longevity, damage_max_age, damage_severity_tolerance_diff, size_one, v7_config)
 }
 
+basefire_expand_csr <- function(states, cell_state, cell_id, species) {
+    .Call(`_landisR_fire_basefire_expand_csr`, states, cell_state, cell_id, species)
+}
+
+basefire_csr_max_age <- function(states, cell_state) {
+    .Call(`_landisR_fire_basefire_csr_max_age`, states, cell_state)
+}
+
+basefire_site_neighbors <- function(rows, cols, active_to_full, drow, dcol, directions) {
+    .Call(`_landisR_fire_basefire_site_neighbors`, rows, cols, active_to_full, drow, dcol, directions)
+}
+

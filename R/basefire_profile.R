@@ -66,7 +66,8 @@
     landscape,
     fire_state = NULL,
     context = list(),
-    topology = NULL) {
+    topology = NULL,
+    site_topology = NULL) {
 
   .basefire_validate_profile(profile)
   .assert_named_list(context, 'context')
@@ -85,13 +86,17 @@
   # inactive sites. Always refresh this pointer to the current landscape.
   context$basefire_full_landscape <- landscape
 
+  prepare_context <- context
+  prepare_context$basefire_site_topology <- site_topology
   prepared_model <- fire_prepare(
     model = profile$model,
     landscape = landscape,
     fire_state = fire_state,
-    context = context,
+    context = prepare_context,
     topology = topology
   )
+  # The spread cache owns the site topology, including in saved checkpoints.
+  prepared_model$prepare_context$basefire_site_topology <- NULL
 
   x <- list(
     profile = profile,
@@ -486,12 +491,14 @@
   map_name <- prepared_profile$parameter_cache$
     dynamic_map_name[hit]
 
+  timer <- .fire_timer("carte_dynamique", current_time)
   map_object <- reader(
     map_name = map_name,
     current_time = current_time,
     landscape = prepared_profile$landscape
   )
 
+  timer("lecture")
   codes <- .basefire_dynamic_region_codes(
     map_object,
     prepared_profile$landscape
@@ -506,13 +513,18 @@
     landscape$fire_region_index <- NULL
   }
 
-  .basefire_prepare_profile(
+  timer("alignement_codes")
+  # Region codes change independently of cell order, coordinates and mask.
+  updated <- .basefire_prepare_profile(
     profile = prepared_profile$profile,
     landscape = landscape,
     fire_state = prepared_profile$fire_state,
     context = prepared_profile$context,
-    topology = NULL
+    topology = prepared_profile$topology,
+    site_topology = prepared_profile$model$prepared$spread$site_topology
   )
+  timer("reconstruction_modele")
+  updated
 }
 
 .basefire_run_timestep_legacy_270C <- function(

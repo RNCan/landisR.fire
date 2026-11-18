@@ -15,7 +15,7 @@ basefire_read(path, known_species = NULL, base_dir = dirname(path))
 basefire_prepare(
   simulation,
   parameters,
-  fire_region_map_code,
+  fire_region_map_code = NULL,
   cell_area,
   fire_state = NULL,
   dynamic_region_map_reader = NULL,
@@ -50,10 +50,11 @@ basefire_step(
   fire applied before succession.}
   \item{simulation}{A live \code{landisR_simulation}.}
   \item{parameters}{A Base Fire parameter object, normally returned by
-  \code{basefire_read()}.}
+  \code{basefire_read()} or \code{basefire_build()}.}
   \item{fire_region_map_code}{Fire-region map codes aligned to the landisR
   landscape. May be a scalar, a named vector keyed by cell identifier, or a
-  data frame with \code{cell_id} and \code{fire_region_map_code}.}
+  data frame with \code{cell_id} and \code{fire_region_map_code}.
+  When \code{NULL}, use the map stored by \code{basefire_build()}.}
   \item{cell_area}{Positive cell area expressed in the same area units as
   the Base Fire mean, minimum, and maximum fire-size parameters.}
   \item{fire_state}{Optional persistent \code{landisR_fire_state}. If

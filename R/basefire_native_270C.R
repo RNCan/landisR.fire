@@ -3,8 +3,9 @@
 # tant que le nouveau paquet n'a pas prouve 18/18 + 24/24 contre 245.
 
 .basefire_native_run_cpp_270C <- function(prepared_profile, current_time,
-                                           cohort_env, runtime,
+                                           cohort_env, cohort_sites, runtime,
                                            last_wind_year, rng, landis_rng = NULL) {
+  timer <- .fire_timer("interface_cpp", current_time)
   # Hooks non standard : refus explicite plutot que changement silencieux du RNG.
   default_shuffle <- .basefire_default_shuffle
   if (!identical(rng$ignition_uniform,stats::runif) ||
@@ -21,7 +22,6 @@
   sev <- pp$severity
   n <- length(spread$cell_id)
   if (n < 1L) stop('270C: paysage sans cellule')
-  site_rows <- unname(cohort_env$rows_by_cell[as.character(spread$cell_id)])
   species_idx <- match(as.character(cohort_env$table$species_code),
                        as.character(mort$species_code))
   if (anyNA(species_idx)) stop('270C: espece de cohorte inconnue')
@@ -40,9 +40,11 @@
     if (is.null(scan_order))
       scan_order <- order(prepared_profile$topology$row, prepared_profile$topology$col, method = "radix")
     c(landis_rng, list(scan_order = scan_order, mean_size = pp$size$mean_size,
-      min_size = pp$size$min_size, max_size = pp$size$max_size, cell_area = pp$size$cell_area))
+      min_size = pp$size$min_size, max_size = pp$size$max_size, cell_area = pp$size$cell_area,
+      timing = .fire_timing_enabled()))
   }
-  basefire_timestep_kernel_260(
+  timer("arguments")
+  result <- basefire_timestep_kernel_260(
     as.integer(current_time), as.numeric(prepared_profile$profile$timestep),
     as.numeric(pp$ignition$ignition_probability),
     as.numeric(pp$ignition$fire_spread_age),
@@ -52,7 +54,7 @@
     as.logical(topo$full_active), as.numeric(pp$burn_probability$fire_spread_age),
     sev$fuel_curve, sev$wind_curve, has_wind, sw,
     as.numeric(runtime$last_fire_year), as.logical(runtime$event_occupied),
-    as.numeric(runtime$last_severity), site_rows, cohort_env,
+    as.numeric(runtime$last_severity), cohort_sites, cohort_env,
     as.numeric(cohort_env$table$age), as.integer(species_idx),
     as.integer(mort$species_fire_tolerance),
     as.numeric(mort$species_longevity),
@@ -60,6 +62,10 @@
     as.integer(mort$damage_severity_tolerance_diff),
     size_one, v7_config
   )
+  timer("noyau")
+  if (!is.null(result$timing))
+    .fire_add_timing("cpp", current_time, names(result$timing), result$timing)
+  result
 }
 
 .basefire_run_timestep_native_270C <- function(
@@ -69,6 +75,7 @@
     rng = list(),
     landis_rng = NULL) {
 
+  timer <- .fire_timer("moteur", current_time)
   .basefire_validate_prepared_profile(
     prepared_profile
   )
@@ -84,12 +91,14 @@
 
   current_time <- as.integer(current_time)
 
+  timer("validation")
   prepared_profile <-
     .basefire_apply_dynamic_region_update(
       prepared_profile,
       current_time
     )
 
+  timer("carte_dynamique")
   topology <- prepared_profile$topology
 
   .basefire_validate_cohort_table(
@@ -99,14 +108,21 @@
 
   rng <- .basefire_normalize_rng(rng)
 
+  timer("validation_cohortes")
   cohort_env <- new.env(parent = emptyenv())
   cohort_env$table <- cohorts
   rownames(cohort_env$table) <- NULL
   # Masque de mortalite stable pendant toute la decennie.
   cohort_env$alive <- rep.int(TRUE, nrow(cohort_env$table))
-  cohort_env$rows_by_cell <- split(seq_len(nrow(cohort_env$table)),
-                                    as.character(cohort_env$table$cell_id))
+  cohort_ids <- cohorts$cell_id
+  # Preserve the native path's original grouping for nonstandard cell IDs.
+  cohort_sites <- if (is.integer(cohort_ids) && !is.object(cohort_ids)) {
+    match(cohort_ids, topology$cell_id, nomatch = 0L)
+  } else {
+    match(as.character(cohort_ids), as.character(topology$cell_id), nomatch = 0L)
+  }
 
+  timer("index_cohortes")
   n <- length(topology$cell_id)
 
   last_fire_year <- prepared_profile$model$prepared$
@@ -207,11 +223,13 @@
   summary_event_count <- 0L
 
   # 270C: delegation explicite au noyau 265 compile dans ce paquet.
+  timer("preparation_etat")
   fused270C <- .basefire_native_run_cpp_270C(
     prepared_profile=prepared_profile, current_time=current_time,
-    cohort_env=cohort_env, runtime=runtime,
+    cohort_env=cohort_env, cohort_sites=cohort_sites, runtime=runtime,
     last_wind_year=last_wind_year, rng=rng, landis_rng=landis_rng
   )
+  timer("interface_et_noyau")
   runtime$last_fire_year <- fused270C$last_fire_year
   runtime$event_occupied <- fused270C$event_occupied
   runtime$last_severity <- fused270C$last_severity
@@ -285,6 +303,7 @@
     region_sites = summary_region_sites
   )
 
+  timer("journaux")
   state <- fire_state(
     cell_id = topology$cell_id,
     last_fire_year = runtime$last_fire_year,
@@ -330,6 +349,7 @@
   )
 
   if (!is.null(landis_rng)) out$landis_rng <- fused270C$landis_rng
+  timer("etat_et_compaction")
   class(out) <- 'landisR_fire_basefire_timestep_result'
   out
 }

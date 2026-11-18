@@ -2,14 +2,16 @@
 \alias{basefire_extension}
 \title{Run Base Fire before succession in landis_sim}
 \usage{
-basefire_extension(parameters, fire_region_map_code, cell_area = NULL,
+basefire_extension(parameters, fire_region_map_code = NULL, cell_area = NULL,
   fire_state = NULL, dynamic_region_map_reader = NULL,
   time_of_last_wind = NULL, parameter_schedule = NULL, seed = NULL,
   stochastic_serotiny = TRUE, rng_mode = c("independent", "landis_v7"))
 }
 \arguments{
   \item{parameters, fire_region_map_code, fire_state, dynamic_region_map_reader,
-  time_of_last_wind}{Base Fire settings passed to \code{basefire_prepare()}.}
+  time_of_last_wind}{Base Fire settings passed to \code{basefire_prepare()}.
+  With \code{NULL} for the map or map reader, use the corresponding
+  tables supplied to \code{basefire_build()}.}
   \item{cell_area}{Cell area in hectares. With \code{NULL}, derive the area
   from the project cell length in metres.}
   \item{parameter_schedule}{Optional schedule for numeric fire-region parameters.}

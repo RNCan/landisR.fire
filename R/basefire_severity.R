@@ -82,7 +82,7 @@
     topology <- fire_grid_topology(landscape)
   }
 
-  validate_fire_topology(topology)
+  .validate_fire_preparation_topology(topology)
 
   region_index <- .basefire_resolve_region_index(
     landscape = landscape,

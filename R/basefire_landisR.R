@@ -23,9 +23,18 @@
   invisible(version)
 }
 
-.basefire_landisR_state <- function(simulation) {
+.basefire_landisR_csr <- function(simulation) {
   .basefire_require_landisR()
+  if (!"landis_csr" %in% getNamespaceExports("landisR")) return(NULL)
+  view <- landisR::landis_csr(simulation)
+  if (identical(view$states$format, "landisR52/state-csr-v3")) view
+}
 
+.basefire_landisR_state <- function(simulation) {
+  view <- .basefire_landisR_csr(simulation)
+  if (!is.null(view)) {
+    return(basefire_expand_csr(view$states, view$cell_state, view$cell_id, view$species))
+  }
   cohorts <- landisR::landis_state(
     simulation,
     representation = 'cohorts'
@@ -120,15 +129,20 @@
     )
   }
 
-  state <- .basefire_landisR_state(simulation)
-
   max_age <- numeric(nrow(cells))
-
-  if (nrow(state)) {
-    split_age <- split(state$age, state$cell_id)
-    ids <- as.integer(names(split_age))
-    pos <- match(ids, cells$cell_id)
-    max_age[pos] <- vapply(split_age, max, numeric(1))
+  view <- .basefire_landisR_csr(simulation)
+  if (is.null(view)) {
+    state <- .basefire_landisR_state(simulation)
+    if (nrow(state)) {
+      split_age <- split(state$age, state$cell_id)
+      ids <- as.integer(names(split_age))
+      max_age[match(ids, cells$cell_id)] <- vapply(split_age, max, numeric(1))
+    }
+  } else {
+    pos <- match(view$cell_id, cells$cell_id)
+    if (anyNA(pos))
+      .fire_stop("Base Fire CSR cell identifiers do not match the landscape.")
+    max_age[pos] <- basefire_csr_max_age(view$states, view$cell_state)
   }
 
   data.frame(
@@ -152,8 +166,10 @@
     cell_area,
     fire_state = NULL,
     dynamic_region_map_reader = NULL,
-    time_of_last_wind = NULL) {
+    time_of_last_wind = NULL,
+    shared_geometry = FALSE) {
 
+  timer <- .fire_timer("initialisation", simulation$year)
   .basefire_require_landisR()
   .basefire_validate_parameters(parameters)
 
@@ -208,11 +224,21 @@
   longevity <- as.numeric(species$longevity)
   names(longevity) <- as.character(species$species)
 
+  if (is.null(fire_region_map_code)) {
+    fire_region_map_code <- parameters$initial_region_codes
+    if (is.null(fire_region_map_code))
+      .fire_stop('Supply fire_region_map_code or build parameters with basefire_build().')
+  }
+  if (is.null(dynamic_region_map_reader) && length(parameters$dynamic_region_maps))
+    dynamic_region_map_reader <- .basefire_table_map_reader(parameters$dynamic_region_maps)
+
+  timer("validation")
   landscape <- .basefire_landisR_landscape(
     simulation = simulation,
     fire_region_map_code = fire_region_map_code
   )
 
+  timer("vue_paysage")
   context <- list(
     start_time = as.integer(simulation$year),
     cell_area = as.numeric(cell_area),
@@ -233,13 +259,18 @@
 
   profile <- .basefire_profile(parameters)
 
-  .basefire_prepare_profile(
+  timer("parametres_et_contexte")
+  geometry <- if (shared_geometry) .basefire_shared_geometry(landscape)
+  prepared <- .basefire_prepare_profile(
     profile = profile,
     landscape = landscape,
     fire_state = fire_state,
     context = context,
-    topology = NULL
+    topology = geometry$active,
+    site_topology = geometry$sites
   )
+  timer("preparation_modele")
+  prepared
 }
 
 .basefire_landisR_update <- function(
@@ -301,6 +332,7 @@
     year = simulation$year,
     use_landis_rng = FALSE) {
 
+  timer <- .fire_timer("pas", year)
   .basefire_require_landisR()
   .basefire_validate_prepared_profile(prepared_profile)
 
@@ -321,7 +353,9 @@
     .fire_stop('Fire year must be the current or next succession year.')
   }
 
+  timer("validation")
   cohorts <- .basefire_landisR_state(simulation)
+  timer("expansion_cohortes")
 
   fire_result <- .basefire_run_timestep(
     prepared_profile = prepared_profile,
@@ -330,6 +364,7 @@
     rng = rng,
     landis_rng = if (use_landis_rng) simulation$landis_rng
   )
+  timer("moteur")
   if (use_landis_rng) simulation$landis_rng <- fire_result$landis_rng
 
   burned <- fire_result$severity[
@@ -339,6 +374,7 @@
     drop = FALSE
   ]
 
+  timer("cellules_brulees")
   if (!nrow(burned)) {
     out <- list(
       simulation = simulation,
@@ -357,6 +393,7 @@
     preserve_cohort_order = use_landis_rng
   )
 
+  timer("preparation_mortalite")
   simulation <- landisR::landis_fire(
     simulation = simulation,
     cells = as.integer(burned$cell_id),
@@ -374,6 +411,7 @@
     )
   )
 
+  timer("application_mortalite_regeneration")
   out <- list(
     simulation = simulation,
     fire_result = fire_result,
@@ -405,7 +443,7 @@ basefire_read <- function(
 basefire_prepare <- function(
     simulation,
     parameters,
-    fire_region_map_code,
+    fire_region_map_code = NULL,
     cell_area,
     fire_state = NULL,
     dynamic_region_map_reader = NULL,

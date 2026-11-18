@@ -71,6 +71,14 @@ stopifnot(identical(p20again$context$parameter_change_log,
 p30 <- basefire_update_parameters(p20again,schedule,current_time=30L)
 stopifnot(p30$parameters$regions$ignition_probability[1] == 0.04)
 
+geometry <- private(".basefire_shared_geometry")(land)
+shared <- prepare_fun(profile_fun(params), landscape = land, context = ctx,
+                      topology = geometry$active, site_topology = geometry$sites)
+shared20 <- basefire_update_parameters(shared, schedule, current_time = 20L)
+stopifnot(identical(shared20$model$prepared, p20$model$prepared),
+          identical(shared20$topology, geometry$active),
+          identical(seed0, .Random.seed))
+
 # Map-code keyed updates are supported, but region identifiers remain fixed.
 bycode <- basefire_parameter_schedule(data.frame(
   year=10L, map_code=2L, ignition_probability=0.11))
