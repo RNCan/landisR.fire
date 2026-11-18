@@ -613,6 +613,9 @@
     )
   }
 
+  species_codes <- prepared_profile$model$prepared$mortality$species_code
+  species_tally <- matrix(0, nrow = length(species_codes), ncol = 2L,
+                          dimnames = list(species_codes, c("cohorts", "density")))
   damage_fun <- function(
       cell_index,
       severity,
@@ -644,6 +647,13 @@
 
     if (any(mortality$kill)) {
       global_kill <- cohort_rows[mortality$kill]
+      killed <- local[mortality$kill, , drop = FALSE]
+      cohort_env$killed_density <- cohort_env$killed_density + sum(killed$biomass)
+      tally <- rowsum(cbind(cohorts = rep.int(1L, nrow(killed)), density = killed$biomass),
+                      killed$species_code)
+      positions <- match(rownames(tally), species_codes)
+      cohort_env$killed_species[positions, ] <-
+        cohort_env$killed_species[positions, , drop = FALSE] + tally
       cohort_env$table <- cohort_env$table[
         -global_kill,
         ,
@@ -658,6 +668,8 @@
   raw_events <- list()
   events <- list()
   log_rows <- list()
+  killed_density <- numeric()
+  killed_species <- list()
 
   summary_region_sites <- integer(
     prepared_profile$parameter_cache$n_regions
@@ -690,6 +702,8 @@
     }
 
     event_id <- length(raw_events) + 1L
+    cohort_env$killed_density <- 0
+    cohort_env$killed_species <- species_tally
 
     spread_result <- .basefire_run_spread_event(
       initiation_cell_index = cell_index,
@@ -770,6 +784,9 @@
 
     if (!is.null(log_row)) {
       log_rows[[length(log_rows) + 1L]] <- log_row
+      killed_density[length(log_rows)] <- cohort_env$killed_density
+      tally <- cohort_env$killed_species
+      killed_species[[length(log_rows)]] <- tally[tally[, "cohorts"] > 0, , drop = FALSE]
 
       summary_total_sites <-
         summary_total_sites +
@@ -840,6 +857,8 @@
     events = events,
     raw_events = raw_events,
     event_log = event_log,
+    killed_density = killed_density,
+    killed_species = killed_species,
     summary = summary,
     cohorts = cohort_env$table,
     fire_state = state,

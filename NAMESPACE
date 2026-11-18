@@ -34,3 +34,4 @@ export(basefire_step_dynamic)
 export(basefire_extension)
 
 export(basefire_build)
+export(basefire_mortality)

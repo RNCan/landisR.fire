@@ -74,7 +74,9 @@ basefire_extension <- function(parameters, fire_region_map_code = NULL, cell_are
     list(simulation = result$simulation,
          state = state,
          events = list(burned = burned, log = result$fire_result$event_log,
-                       summary = result$fire_result$summary))
+                       summary = result$fire_result$summary,
+                       killed_density = .basefire_killed_density(result$fire_result),
+                       killed_species = .basefire_killed_species(result$fire_result)))
   }
 
   .basefire_require_landisR()
