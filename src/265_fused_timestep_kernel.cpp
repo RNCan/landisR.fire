@@ -6,6 +6,7 @@
 // [[Rcpp::plugins(cpp11)]]
 #include <Rcpp.h>
 #include <landisR/mt19937.hpp>
+#include <landisR/progress.hpp>
 #include <memory>
 #include <chrono>
 #include <vector>
@@ -594,6 +595,8 @@ List basefire_timestep_kernel_260(
       (has_wind && last_wind_year.size() != n)) {
     stop("260: invalid input dimensions");
   }
+  landis_progress::Reporter progress;
+  progress.phase(0, "Preparing fire workspace");
   // 265: O(N) scratch initialized only ONCE per timestep, not per fire.
   Rcpp::XPtr<FireWorkspace265> ws265(new FireWorkspace265(n), true);
   List legacy_rows;
@@ -635,11 +638,17 @@ List basefire_timestep_kernel_260(
   // Keep a lease only across the ignition scan. The event kernel opens its
   // own lease and publishes before calling R's rexp/sample.int callbacks.
   // Never nest leases: publish this one before the event, then reacquire it.
+  progress.start(0.08, 1, "Ignition, spread & severity", n);
   RngLease249 lease(!v7);
   auto draw_uniform = [&]() { return v7 ? v7->stream.next_double() : lease.uniform(); };
   const auto scan_start = timing ? Clock::now() : Clock::time_point{};
   double event_seconds = 0;
   for (int i = 0; i < n; ++i) {
+    if (progress.due(i)) {
+      if (!v7) lease.publish();
+      progress.advance(i);
+      if (!v7) lease.reload();
+    }
     const int pos = v7 ? scan_order[i] - 1 : i;
     if (pos < 0 || pos >= n) stop("Invalid LANDIS-II v7 fire scan position");
     ++scanned;

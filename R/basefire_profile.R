@@ -531,7 +531,7 @@
     prepared_profile,
     current_time,
     cohorts,
-    rng = list()) {
+    rng = list(), report = NULL) {
 
   .basefire_validate_prepared_profile(
     prepared_profile
@@ -547,6 +547,7 @@
   }
 
   current_time <- as.integer(current_time)
+  if (!is.null(report)) report(0.13, "Fire regions & cohort index")
 
   prepared_profile <-
     .basefire_apply_dynamic_region_update(
@@ -678,7 +679,10 @@
   summary_total_sites <- 0L
   summary_event_count <- 0L
 
+  stride <- if (!is.null(report)) max(1L, ceiling(n / 20))
   for (cell_index in seq_len(n)) {
+    if (!is.null(report) && (cell_index - 1L) %% stride == 0)
+      report(0.23 + 0.48 * (cell_index - 1L) / n, "Ignition & spread")
     # Keep ignition TSF state synchronized with events that have already
     # occurred earlier in this same timestep.
     ignition_prepared <-
@@ -798,6 +802,7 @@
     }
   }
 
+  if (!is.null(report)) report(0.73, "Building fire logs & history")
   if (length(log_rows)) {
     event_log <- do.call(rbind, log_rows)
     rownames(event_log) <- NULL

@@ -26,31 +26,3 @@
        production_fire_backend = 'legacy R (safe default)',
        information = 'Rcpp compiled into package; fused 265 requires separate parity tests before activation')
 }
-
-# API compatible: nouveaux arguments ajoutes apres les anciens.
-# La progression marque les phases de l'appel public, pas les cellules individuelles.
-basefire_step <- function(simulation, prepared, rng = list(),
-                          stochastic_serotiny = TRUE, metadata = list(),
-                          progress = FALSE, verbose = FALSE,
-                          year = simulation$year) {
-  if (!is.logical(progress) || length(progress) != 1L || is.na(progress))
-    stop('progress must be TRUE or FALSE.', call. = FALSE)
-  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose))
-    stop('verbose must be TRUE or FALSE.', call. = FALSE)
-  if (!progress && !verbose) {
-    return(.basefire_step_landisR(simulation = simulation,
-       prepared_profile = prepared, rng = rng,
-       stochastic_serotiny = stochastic_serotiny, metadata = metadata, year = year))
-  }
-  # Consommation RNG nulle: aucune RNG ne doit intervenir dans l'interface.
-  bar <- if (progress) utils::txtProgressBar(min=0, max=2, style=3) else NULL
-  if (!is.null(bar)) on.exit(close(bar), add=TRUE)
-  if (verbose) cat('[landisR.fire] Debut du pas Base Fire\n')
-  if (!is.null(bar)) utils::setTxtProgressBar(bar, 1)
-  ans <- .basefire_step_landisR(simulation = simulation,
-    prepared_profile = prepared, rng = rng,
-    stochastic_serotiny = stochastic_serotiny, metadata = metadata, year = year)
-  if (!is.null(bar)) utils::setTxtProgressBar(bar, 2)
-  if (verbose) cat('[landisR.fire] Fin du pas Base Fire\n')
-  ans
-}

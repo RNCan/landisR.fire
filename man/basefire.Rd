@@ -27,7 +27,8 @@ basefire_step(
   prepared,
   rng = list(),
   stochastic_serotiny = TRUE,
-  metadata = list(), progress = FALSE, verbose = FALSE,
+  metadata = list(), progress = getOption("landisR.progress", interactive()),
+  verbose = FALSE,
   output_dir = NULL, output_formats = c("csv", "rds"),
   raster_template = NULL, cell_length = NULL, overwrite_outputs = FALSE,
   year = simulation$year
@@ -39,7 +40,9 @@ basefire_step(
   \item{raster_template}{Optional georeferenced one-layer terra raster (or path) used for GeoTIFF grid geometry.}
   \item{cell_length}{Optional relative grid cell size if no georeferenced raster is supplied.}
   \item{overwrite_outputs}{Allow replacing an existing annual output folder; default FALSE.}
-  \item{progress}{Logical. Show progress information in the console; default \code{FALSE}.}
+  \item{progress}{Show a console bar for the fire step and optional output
+  writing. Defaults to display in interactive sessions. For coupled runs,
+  use the progress argument of \code{landisR::landis_sim()}.}
   \item{verbose}{Logical. Show detailed console messages; default \code{FALSE}.}
   \item{path}{Path to a LANDIS-II Base Fire parameter file.}
   \item{known_species}{Optional character vector of species codes allowed

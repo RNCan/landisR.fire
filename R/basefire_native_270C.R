@@ -73,7 +73,7 @@
     current_time,
     cohorts,
     rng = list(),
-    landis_rng = NULL) {
+    landis_rng = NULL, report = NULL) {
 
   timer <- .fire_timer("moteur", current_time)
   .basefire_validate_prepared_profile(
@@ -92,6 +92,7 @@
   current_time <- as.integer(current_time)
 
   timer("validation")
+  if (!is.null(report)) report(0.13, "Fire regions & cohort index")
   prepared_profile <-
     .basefire_apply_dynamic_region_update(
       prepared_profile,
@@ -224,11 +225,11 @@
 
   # 270C: delegation explicite au noyau 265 compile dans ce paquet.
   timer("preparation_etat")
-  fused270C <- .basefire_native_run_cpp_270C(
+  fused270C <- landisR::landis_progress_native(report, 0.23, 0.71, .basefire_native_run_cpp_270C(
     prepared_profile=prepared_profile, current_time=current_time,
     cohort_env=cohort_env, cohort_sites=cohort_sites, runtime=runtime,
     last_wind_year=last_wind_year, rng=rng, landis_rng=landis_rng
-  )
+  ))
   timer("interface_et_noyau")
   runtime$last_fire_year <- fused270C$last_fire_year
   runtime$event_occupied <- fused270C$event_occupied
@@ -238,6 +239,7 @@
   runtime$disturbed <- fused270C$disturbed
   raw_events <- fused270C$raw_events
   summary_event_count <- length(raw_events)
+  if (!is.null(report)) report(0.72, "Building fire event logs")
   for (event_id in seq_along(raw_events)) {
     spread_result <- raw_events[[event_id]]
     if (any(c('event_member','event_occupied','last_fire_year') %in%
@@ -304,6 +306,7 @@
   )
 
   timer("journaux")
+  if (!is.null(report)) report(0.80, "Updating fire history")
   state <- fire_state(
     cell_id = topology$cell_id,
     last_fire_year = runtime$last_fire_year,
@@ -357,7 +360,7 @@
 
 # Signature historique stricte : option seulement, sans nouvel argument.
 .basefire_run_timestep <- function(prepared_profile, current_time,
-                                   cohorts, rng = list(), landis_rng = NULL) {
+                                   cohorts, rng = list(), landis_rng = NULL, report = NULL) {
   backend <- getOption("landisR.fire.backend", NULL)
   if (is.null(backend)) {
     rr <- .basefire_normalize_rng(rng)
@@ -375,10 +378,10 @@
     stop("The LANDIS-II v7 fire stream requires the native backend.", call. = FALSE)
   if (identical(backend,'native')) {
     return(.basefire_run_timestep_native_270C(prepared_profile,
-               current_time, cohorts, rng, landis_rng))
+               current_time, cohorts, rng, landis_rng, report))
   }
   .basefire_run_timestep_legacy_270C(prepared_profile, current_time,
-                                     cohorts, rng)
+                                     cohorts, rng, report)
 }
 
 .basefire_native_status_270B <- function() {

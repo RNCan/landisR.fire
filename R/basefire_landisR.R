@@ -330,7 +330,8 @@
     stochastic_serotiny = TRUE,
     metadata = list(),
     year = simulation$year,
-    use_landis_rng = FALSE) {
+    use_landis_rng = FALSE,
+    report_progress = getOption("landisR.progress.report")) {
 
   timer <- .fire_timer("pas", year)
   .basefire_require_landisR()
@@ -354,6 +355,7 @@
   }
 
   timer("validation")
+  if (!is.null(report_progress)) report_progress(0.06, "Reading cohorts")
   cohorts <- .basefire_landisR_state(simulation)
   timer("expansion_cohortes")
 
@@ -362,7 +364,8 @@
     current_time = as.integer(year),
     cohorts = cohorts,
     rng = rng,
-    landis_rng = if (use_landis_rng) simulation$landis_rng
+    landis_rng = if (use_landis_rng) simulation$landis_rng,
+    report = report_progress
   )
   timer("moteur")
   if (use_landis_rng) simulation$landis_rng <- fire_result$landis_rng
@@ -387,6 +390,7 @@
     return(out)
   }
 
+  if (!is.null(report_progress)) report_progress(0.84, "Preparing cohort mortality")
   update <- .basefire_landisR_update(
     fire_result = fire_result,
     burned_cells = burned$cell_id,
@@ -394,6 +398,7 @@
   )
 
   timer("preparation_mortalite")
+  if (!is.null(report_progress)) report_progress(0.89, "Applying mortality & serotiny")
   simulation <- landisR::landis_fire(
     simulation = simulation,
     cells = as.integer(burned$cell_id),
