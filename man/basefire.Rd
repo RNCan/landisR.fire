@@ -92,8 +92,7 @@ format and preserves the compatibility rules implemented by
 \pkg{landisR} simulation. The current coupled adapter requires the Base
 Fire timestep to equal the landisR succession timestep.
 
-\code{basefire_step()} reads the current cohort state with
-\code{landisR::landis_state()}, runs the strict Base Fire event chain,
+\code{basefire_step()} reads the shared cohort state, runs the strict Base Fire event chain,
 converts post-fire survivors and completely emptied cells to a
 \code{landisR::landis_update()}, and applies that update through
 \code{landisR::landis_fire()}. This ordering allows landisR to capture
@@ -126,3 +125,21 @@ timesteps, carry both \code{result$simulation} and
 \concept{fire}
 \concept{Base Fire}
 \concept{landisR coupling}
+
+\examples{
+\dontrun{
+# Use an existing canonical biomass project and Base Fire input files.
+project <- landisR::landis_from_canonical("inputs/canonical")
+sim <- landisR::landis_initialize(project)
+parameters <- basefire_read("inputs/base-fire.txt",
+  known_species = project$canonical$species$species)
+# fire_regions is a data frame with cell_id and fire_region_map_code.
+fire_regions <- read.csv("inputs/fire-regions-by-cell.csv")
+area_ha <- project$canonical$cell_length^2 / 10000
+prepared <- basefire_prepare(sim, parameters, fire_regions, cell_area = area_ha)
+step <- basefire_step(sim, prepared, year = project$canonical$timestep,
+  progress = FALSE)
+sim <- landisR::landis_step(step$simulation, progress = FALSE)
+prepared <- step$prepared_profile
+}
+}

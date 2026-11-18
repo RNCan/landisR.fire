@@ -39,4 +39,10 @@ schedule <- basefire_parameter_schedule(data.frame(
   fire_spread_age = c(60L, 45L)
 ))
 print(schedule)
+\dontrun{
+# Use a simulation and a prepared profile containing the North region.
+prepared <- basefire_update_parameters(prepared, schedule, current_time = 10L)
+result <- basefire_step_dynamic(sim, prepared, schedule, year = 10L)
+prepared <- result$prepared_profile
+}
 }

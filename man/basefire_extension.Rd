@@ -39,3 +39,22 @@ table (\code{cell_id} and \code{severity}), a fire event \code{log} and a
 with the coupled run for checkpointing. The shared MT19937 stream is kept
 with the simulation, including after fire timesteps with no ignitions.
 }
+
+\examples{
+# Use parameters carrying a map, as in the basefire_build() example.
+regions <- data.frame(name = "north", map_code = 1L, mean_size = 10,
+  min_size = 1, max_size = 20, ignition_probability = 0.01,
+  fire_spread_age = 30L)
+parameters <- basefire_build(
+  timestep = 10L,
+  species = data.frame(species_code = "PICE.MAR", fire_tolerance = 3L),
+  regions = regions,
+  damage = data.frame(max_age = 1, severity_tolerance_diff = 4L),
+  fire_region_map_code = data.frame(cell_id = 1:4, fire_region_map_code = 1L)
+)
+fire <- basefire_extension(parameters, seed = 123L)
+\dontrun{
+# The project grid, species and timestep must match the parameters.
+run <- landisR::landis_sim(project, extensions = list(fire = fire))
+}
+}
