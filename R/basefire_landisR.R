@@ -224,13 +224,27 @@
   longevity <- as.numeric(species$longevity)
   names(longevity) <- as.character(species$species)
 
+  grid <- canonical$landscape
+  raster_reader <- NULL
+  if (!is.null(parameters$region_rasters)) {
+    raster_reader <- .basefire_raster_map_reader(
+      parameters$region_rasters, grid$nrow, grid$ncol
+    )
+  }
   if (is.null(fire_region_map_code)) {
     fire_region_map_code <- parameters$initial_region_codes
-    if (is.null(fire_region_map_code))
-      .fire_stop('Supply fire_region_map_code or build parameters with basefire_build().')
+    if (is.null(fire_region_map_code)) {
+      if (is.null(raster_reader))
+        .fire_stop('Supply fire_region_map_code or build parameters with basefire_build().')
+      fire_region_map_code <- raster_reader(parameters$initial_fire_regions, landscape = grid$cells)
+    }
   }
-  if (is.null(dynamic_region_map_reader) && length(parameters$dynamic_region_maps))
-    dynamic_region_map_reader <- .basefire_table_map_reader(parameters$dynamic_region_maps)
+  if (is.null(dynamic_region_map_reader)) {
+    if (length(parameters$dynamic_region_maps))
+      dynamic_region_map_reader <- .basefire_table_map_reader(parameters$dynamic_region_maps)
+    else if (nrow(parameters$dynamic_regions))
+      dynamic_region_map_reader <- raster_reader
+  }
 
   timer("validation")
   landscape <- .basefire_landisR_landscape(
@@ -436,13 +450,26 @@
 basefire_read <- function(
     path,
     known_species = NULL,
-    base_dir = dirname(path)) {
+    base_dir = dirname(path),
+    project = NULL,
+    scenario_directory = dirname(path),
+    raster_template = NULL) {
 
-  .basefire_read_parameters(
+  parameters <- .basefire_read_parameters(
     path = path,
     known_species = known_species,
-    base_dir = base_dir
+    base_dir = base_dir,
+    project = project
   )
+  .assert_scalar_character(scenario_directory, 'scenario_directory')
+  directory <- normalizePath(scenario_directory, winslash = '/', mustWork = TRUE)
+  template <- if (is.null(raster_template)) parameters$initial_fire_regions else raster_template
+  .assert_scalar_character(template, 'raster_template')
+  parameters$region_rasters <- list(
+    directory = directory,
+    template = .basefire_resolve_path(chartr('\\', '/', template), directory)
+  )
+  parameters
 }
 
 basefire_prepare <- function(

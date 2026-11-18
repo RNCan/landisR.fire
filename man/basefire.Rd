@@ -10,7 +10,8 @@ one fire timestep while applying mortality and post-fire recruitment through
 the public \pkg{landisR} state/update/fire interface.
 }
 \usage{
-basefire_read(path, known_species = NULL, base_dir = dirname(path))
+basefire_read(path, known_species = NULL, base_dir = dirname(path),
+  project = NULL, scenario_directory = dirname(path), raster_template = NULL)
 
 basefire_prepare(
   simulation,
@@ -37,7 +38,14 @@ basefire_step(
 \arguments{
   \item{output_dir}{Optional parent directory for per-timestep fire outputs. NULL disables writing.}
   \item{output_formats}{Subset of \code{c("csv", "rds", "tif")}; default CSV and RDS.}
-  \item{raster_template}{Optional georeferenced one-layer terra raster (or path) used for GeoTIFF grid geometry.}
+  \item{raster_template}{For \code{basefire_read()}, an optional path to a
+  one-layer landscape raster used to verify the fire maps. Relative paths
+  use \code{scenario_directory}. The initial fire map provides the reference
+  grid when this argument is omitted. For output, a one-layer terra raster
+  or a path defines the GeoTIFF grid geometry.}
+  \item{scenario_directory}{Directory used to resolve relative fire raster paths.
+  Set this to the directory containing the original LANDIS-II scenario when
+  maps are referenced relative to that scenario.}
   \item{cell_length}{Optional relative grid cell size if no georeferenced raster is supplied.}
   \item{overwrite_outputs}{Allow replacing an existing annual output folder; default FALSE.}
   \item{progress}{Show a console bar for the fire step and optional output
@@ -47,8 +55,11 @@ basefire_step(
   \item{path}{Path to a LANDIS-II Base Fire parameter file.}
   \item{known_species}{Optional character vector of species codes allowed
   in the Base Fire species table.}
-  \item{base_dir}{Base directory used to resolve relative paths referenced
-  by the Base Fire parameter file.}
+  \item{base_dir}{Directory used to resolve a relative species CSV path.}
+  \item{project}{A \code{landisR_project}, typically from \code{landis_read()}.
+  For an original LANDIS-II file, the project provides the species codes and
+  fire tolerances. A \code{Species_CSV_File} entry explicitly selects the CSV
+  specified in the file.}
   \item{year}{Current or next succession year. The next year is used for a
   fire applied before succession.}
   \item{simulation}{A live \code{landisR_simulation}.}
@@ -84,9 +95,14 @@ or \code{options(landisR.fire.backend = "native")} to require the native
 engine. Explicit native selection rejects unsupported RNG or wind hooks.
 The backend option does not change the succession engine.
 
-\code{basefire_read()} parses the strict LANDIS-II Base Fire parameter
-format and preserves the compatibility rules implemented by
-\pkg{landisR.fire}.
+\code{basefire_read()} imports the original LANDIS-II Base Fire parameter
+file with fire tolerances from \code{project}. Inputs with a
+\code{Species_CSV_File} entry remain supported.
+The returned parameters can be passed directly to \code{basefire_extension()}
+or \code{basefire_prepare()}. With \pkg{terra}, the initial raster is read
+at preparation and scheduled rasters are read when their year is reached.
+A supplied \code{fire_region_map_code} or \code{dynamic_region_map_reader}
+takes precedence over the corresponding automatic read.
 
 \code{basefire_prepare()} binds those parameters to a live
 \pkg{landisR} simulation. The current coupled adapter requires the Base
@@ -131,12 +147,14 @@ timesteps, carry both \code{result$simulation} and
 # Use an existing canonical biomass project and Base Fire input files.
 project <- landisR::landis_from_canonical("inputs/canonical")
 sim <- landisR::landis_initialize(project)
-parameters <- basefire_read("inputs/base-fire.txt",
-  known_species = project$canonical$species$species)
-# fire_regions is a data frame with cell_id and fire_region_map_code.
-fire_regions <- read.csv("inputs/fire-regions-by-cell.csv")
+parameters <- basefire_read(
+  "inputs/base-fire.txt",
+  project = project,
+  scenario_directory = "inputs",
+  raster_template = "ecoregions.tif"
+)
 area_ha <- project$canonical$cell_length^2 / 10000
-prepared <- basefire_prepare(sim, parameters, fire_regions, cell_area = area_ha)
+prepared <- basefire_prepare(sim, parameters, cell_area = area_ha)
 step <- basefire_step(sim, prepared, year = project$canonical$timestep,
   progress = FALSE)
 sim <- landisR::landis_step(step$simulation, progress = FALSE)

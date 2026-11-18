@@ -220,3 +220,50 @@ test_that('Base Fire strict handoff runs on a real landisR simulation', {
     sim0$year
   )
 })
+
+test_that('Base Fire reads scenario-relative rasters and applies a scheduled map', {
+  skip_if_not_installed('terra')
+  skip_if_not_installed('landisR')
+  skip_if_not_installed('landisR.succession.biomass')
+
+  td <- tempfile('basefire-rasters-')
+  scenario <- file.path(td, 'replicate')
+  dir.create(scenario, recursive = TRUE)
+  on.exit(unlink(td, recursive = TRUE), add = TRUE)
+  project <- make_serotiny_project(ncol = 5L)
+  grid <- terra::rast(nrow = 1, ncol = 5, xmin = 0, xmax = 500,
+                     ymin = 0, ymax = 100, crs = 'EPSG:32618')
+  initial <- c(1L, 2L, 1L, 1L, 2L)
+  dynamic <- c(2L, 1L, 2L, 2L, 1L)
+  terra::writeRaster(terra::setValues(grid, initial), file.path(td, 'initial.tif'))
+  dynamic_file <- file.path(td, 'dynamic.tif')
+  terra::writeRaster(terra::setValues(grid, dynamic), dynamic_file)
+  input <- file.path(td, 'base-fire.txt')
+  writeLines(c(
+    'LandisData "Base Fire"', 'Timestep 10',
+    'north 1 1 1 1 0 20', 'south 2 1 1 1 0 20',
+    'InitialFireRegionsMap ../initial.tif',
+    'DynamicFireRegionTable', '10 ../dynamic.tif',
+    'FuelCurveTable', 'WindCurveTable', 'FireDamageTable', '100% 4',
+    'MapNames severity.tif', 'LogFile fire.csv', 'SummaryLogFile summary.csv'
+  ), input)
+  parameters <- basefire_read(input, project = project, scenario_directory = scenario)
+  sim <- landisR::landis_initialize(project, seed = 4357L)
+  auto <- landisR::landis_sim(sim, steps = 0L, extensions = list(
+    fire = basefire_extension(parameters)
+  ))
+  expect_identical(auto$extension_states$fire$prepared$landscape$fire_region_map_code, initial)
+
+  manual <- landisR::landis_sim(sim, steps = 1L, extensions = list(
+    fire = basefire_extension(parameters, fire_region_map_code = initial,
+                             dynamic_region_map_reader = function(...) dynamic)
+  ))
+  resumed <- landisR::landis_sim(unserialize(serialize(auto, NULL)), steps = 1L)
+  expect_identical(resumed$extension_states$fire$prepared$landscape$fire_region_map_code, dynamic)
+  expect_identical(resumed$events$fire, manual$events$fire)
+  expect_identical(landisR::landis_csr(resumed$simulation), landisR::landis_csr(manual$simulation))
+
+  terra::writeRaster(terra::shift(terra::setValues(grid, dynamic), dx = 100),
+                     dynamic_file, overwrite = TRUE)
+  expect_error(landisR::landis_sim(auto, steps = 1L), 'not aligned to the reference grid')
+})

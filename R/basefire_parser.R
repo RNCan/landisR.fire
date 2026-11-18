@@ -63,7 +63,7 @@
   if (is_absolute) path else file.path(base_dir, path)
 }
 
-.basefire_read_species_csv <- function(path, known_species = NULL) {
+.basefire_read_species_csv <- function(path) {
   if (!file.exists(path)) {
     .fire_stop('Base Fire species CSV not found: ', path)
   }
@@ -85,32 +85,15 @@
     )
   }
 
-  out <- data.frame(
+  .basefire_normalize_species(data.frame(
     species_code = as.character(x[['SpeciesCode']]),
     fire_tolerance = suppressWarnings(as.numeric(x[['FireTolerance']])),
     stringsAsFactors = FALSE
-  )
-
-  out <- .basefire_normalize_species(out)
-
-  if (!is.null(known_species)) {
-    known_species <- as.character(known_species)
-    unknown <- setdiff(out$species_code, known_species)
-    if (length(unknown)) {
-      .fire_stop(
-        'Base Fire species CSV contains species not present in the supplied ',
-        'landisR species set: ',
-        paste(unknown, collapse = ', '),
-        '.'
-      )
-    }
-  }
-
-  out
+  ))
 }
 
 .basefire_read_parameters <- function(path, known_species = NULL,
-                                      base_dir = dirname(path)) {
+                                      base_dir = dirname(path), project = NULL) {
   if (!file.exists(path)) {
     .fire_stop('Base Fire parameter file not found: ', path)
   }
@@ -174,9 +157,37 @@
     'Timestep'
   )
 
-  species_csv_file <- read_named_value('Species_CSV_File')
-  species_path <- .basefire_resolve_path(species_csv_file, base_dir)
-  species <- .basefire_read_species_csv(species_path, known_species)
+  species_csv_file <- NULL
+  if (identical(current_first(), 'Species_CSV_File')) {
+    species_csv_file <- read_named_value('Species_CSV_File')
+    species_path <- .basefire_resolve_path(species_csv_file, base_dir)
+    species <- .basefire_read_species_csv(species_path)
+  } else {
+    if (!inherits(project, 'landisR_project')) {
+      .fire_stop(
+        'Supply project = <landisR_project> to read a LANDIS-II Base Fire ',
+        'file without Species_CSV_File. Fire tolerance comes from the project species table.'
+      )
+    }
+    project_species <- project$canonical$species
+    .basefire_require_columns(
+      project_species, c('species', 'fire_tolerance'), 'project species table'
+    )
+    species <- .basefire_normalize_species(data.frame(
+      species_code = project_species$species,
+      fire_tolerance = project_species$fire_tolerance
+    ))
+  }
+
+  if (!is.null(known_species)) {
+    unknown <- setdiff(species$species_code, as.character(known_species))
+    if (length(unknown)) {
+      .fire_stop(
+        'Base Fire species table contains species not present in the supplied ',
+        'landisR species set: ', paste(unknown, collapse = ', '), '.'
+      )
+    }
+  }
 
   region_rows <- list()
   while (i <= length(tokens) &&
